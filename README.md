@@ -1,7 +1,10 @@
 # 3-D Root Crown Analysis Pipeline
+Stable version: 0.0.0
+
 Author: Ni Jiang
 
 Compatibility: **Python 2**
+Supported OS: Debian
 
 This set of scripts are used to analyze 3-D volumes of maize root crowns.
 
