@@ -3,7 +3,7 @@ Stable version: 0.0.0
 
 Author: Ni Jiang
 
-Compatibility: **Python 2**
+Compatibility: Python 2
 
 Supported OS: Debian
 
