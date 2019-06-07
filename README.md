@@ -7,7 +7,7 @@ Compatibility: Python 2
 
 Supported OS: Debian
 
-This set of scripts are used to analyze 3-D volumes of maize root crowns.
+This set of scripts is used to analyze 3-D volumes of maize root crowns.
 
 ## Individual Modules
 
