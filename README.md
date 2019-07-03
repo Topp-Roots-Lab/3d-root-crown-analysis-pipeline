@@ -36,7 +36,7 @@ This is an overview of the execution sequence for analyzing root crown x-ray
 scans.
 
 <p align="center">
-  <img alt="Root Crown Analysis Pipeline Flowchart" src="doc/img/root-crown-pipeline-flowchart.png">
+  <img alt="Root Crown Analysis Pipeline Flowchart" src="docs/img/root-crown-pipeline-flowchart.png">
 </p>
 
 ## Additional Notes
