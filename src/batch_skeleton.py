@@ -1,5 +1,4 @@
-#!/usr/bin/env python2
-import commands
+#!/usr/bin/env python3
 import os
 import shutil
 import argparse
@@ -23,8 +22,8 @@ output_name = os.path.join(input_folder, "features.tsv")
 shutil.copy2("/media/topplab/EA6E84586E842005/scripts/rootCrownAnalysis3D/features.tsv", output_name)
 
 for fname in [out for out in os.listdir(input_folder) if out.endswith(".out")]:
-	#input_name = "\"" + input_folder + fname + "\"";
-	input_name = "\"" + os.path.join(input_folder, fname) + "\""
-	command = "/media/topplab/EA6E84586E842005/scripts/rootCrownAnalysis3D/Skeleton " + input_name + " " + output_name + " " + str(scale);
-	print command+"\n"
-	os.system(command)
+    #input_name = "\"" + input_folder + fname + "\"";
+    input_name = "\"" + os.path.join(input_folder, fname) + "\""
+    command = "/media/topplab/EA6E84586E842005/scripts/rootCrownAnalysis3D/Skeleton " + input_name + " " + output_name + " " + str(scale)
+    print(command+"\n")
+    os.system(command)
