@@ -40,9 +40,9 @@ for root, dirs, files in list_dirs:
             os.makedirs(output_path)
         output_path = "\"" + output_path + "/\""
         if args.soil:
-            command = "./rootCrownSegmentation " + "1 " + input_path + " " + str(sampling) + " " + output_path + " " + model_file + " " + model_file2+ " " + model_file3 + " " + model_file4
+            command = "rootCrownSegmentation " + "1 " + input_path + " " + str(sampling) + " " + output_path + " " + model_file + " " + model_file2+ " " + model_file3 + " " + model_file4
         else:
-            command = "./rootCrownSegmentation " + "0 " + input_path + " " + str(sampling) + " " + output_path + " " + model_file + " " + model_file2
+            command = "rootCrownSegmentation " + "0 " + input_path + " " + str(sampling) + " " + output_path + " " + model_file + " " + model_file2
         
         print(command)
         print("\n")
