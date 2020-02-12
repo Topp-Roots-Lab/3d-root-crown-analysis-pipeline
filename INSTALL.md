@@ -12,7 +12,7 @@ Base on this CentOS 7 guide: https://www.vultr.com/docs/how-to-install-opencv-on
 ```bash
 # Add Okay repo for libav-devel
 dnf install http://repo.okay.com.mx/centos/8/x86_64/release/okay-release-1-3.el8.noarch.rpm
-dnf install gtk3-devel gstreamer-devel gstreamer1-plugins-base-devel libdc1394-devel libgphoto2-devel libav-devel
+dnf install gtk3-devel gstreamer1-devel gstreamer1-plugins-base-devel libdc1394-devel libgphoto2-devel libav-devel cmake
 ```
 
 ##### Step 2: Download the OpenCV 3.3.0 archive

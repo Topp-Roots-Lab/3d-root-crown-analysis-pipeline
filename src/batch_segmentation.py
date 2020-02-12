@@ -7,7 +7,7 @@ def options():
     parser = argparse.ArgumentParser(description='Root Crowns Segmentation',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--soil', action='store_true')
     parser.add_argument('-i', "--input_folder", help="directory of original image slices", required=True)
-    parser.add_argument('-s', "--sampling", help="resolution parameter", default=2)	
+    parser.add_argument('-s', "--sampling", help="resolution parameter", default=2)
     
     args = parser.parse_args()
 

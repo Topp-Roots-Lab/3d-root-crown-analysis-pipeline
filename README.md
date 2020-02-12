@@ -1,11 +1,10 @@
 # 3-D Root Crown Analysis Pipeline
-Stable version: 0.0.0
+
+Stable version: 1.0.0
 
 Author: Ni Jiang
 
-Compatibility: Python 2
-
-Supported OS: Debian
+Compatibility: Python 3
 
 This set of scripts is used to analyze 3-D volumes of maize root crowns.
 
@@ -32,6 +31,7 @@ Analyzes the root system based on the binary image stack and calculates traits
 for the root system.
 
 ## Root Crown Analysis Pipeline Flowchart
+
 This is an overview of the execution sequence for analyzing root crown x-ray
 scans.
 
