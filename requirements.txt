@@ -1,3 +1,5 @@
 numpy
 Pillow
 tqdm
+scikit-image
+sklearn
