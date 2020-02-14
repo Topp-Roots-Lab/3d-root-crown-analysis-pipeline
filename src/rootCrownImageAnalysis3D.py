@@ -1,4 +1,3 @@
-#!/usr/bin/env python2
 '''
 Created on Sep 20, 2018
 
@@ -121,10 +120,10 @@ for root, dirs, files in list_dirs:
             num_ch_hist = []
             solidity = []            
             img = cv.imread(os.path.join(original_folder, subfolder, s_files[0]), cv.IMREAD_GRAYSCALE)
-            bw_S1 = np.empty((img.shape[0], 1))
-            bw_S2 = np.empty((img.shape[1], 1))
-            im_S1 = np.empty((img.shape[0], 1), dtype = np.uint16)
-            im_S2 = np.empty((img.shape[1], 1), dtype = np.uint16)              
+            bw_S1 = np.empty((img.shape[1], 1))
+            bw_S2 = np.empty((img.shape[0], 1))
+            im_S1 = np.empty((img.shape[1], 1), dtype = np.uint16)
+            im_S2 = np.empty((img.shape[0], 1), dtype = np.uint16)              
             bw_T = img/255
             im_T = np.empty((img.shape[0], img.shape[1]), dtype = np.uint16)                        
             for img_name in s_files:
