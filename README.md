@@ -33,10 +33,10 @@ calculated from the provided volume.
 An example run of the entire pipeline (omitting meshlabserver) is as follows:
 
 ```bash
-raw2img.py -i ./myVolume/
-batch_segmentation.py -s 2 -i ./myVolume/
-batch_skeleton.py -i ./myVolume_3d_models/
-rootCrownImageAnalysis3D.py -s 2 -t 0.104 -i ./myVolume_thresholded_images/
+raw2img -i ./myVolume/
+batch_segmentation -s 2 -i ./myVolume/
+batch_skeleton -i ./myVolume_3d_models/
+rootCrownImageAnalysis3D -s 2 -t 0.104 -i ./myVolume_thresholded_images/
 ```
 
 By convention, the sampling, denotated by `-s` flag, is set as 2.
