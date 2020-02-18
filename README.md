@@ -13,7 +13,8 @@ This set of scripts is used to analyze 3-D volumes of maize root crowns.
 - [Descriptions](#description)
 - [Troubleshooting](#troubleshooting)
 - [Additional Information](#additional-information)
-
+ - [Ludo & Usage](#ludo-usage)
+ - [Planned Development](#planned-development)
 ## Input & Output
 
 ### Input
@@ -32,11 +33,17 @@ calculated from the provided volume.
 An example run of the entire pipeline (omitting meshlabserver) is as follows:
 
 ```bash
-python raw2img.py -i ./myVolume/
-python batch_segmentation.py -s 2 -i ./myVolume/
-python batch_skeleton.py -i ./myVolume_3d_models/
-python rootCrownImageAnalysis3D.py -s 2 -t 0.104 -i ./myVolume_thresholded_images/
+raw2img.py -i ./myVolume/
+batch_segmentation.py -s 2 -i ./myVolume/
+batch_skeleton.py -i ./myVolume_3d_models/
+rootCrownImageAnalysis3D.py -s 2 -t 0.104 -i ./myVolume_thresholded_images/
 ```
+
+By convention, the sampling, denotated by `-s` flag, is set as 2.
+You will need to extract the slice thickness value from the `.dat` file
+associated with the volume. The slice thickness is the real-world thickness,
+in millimeters, of each slice. They should be the same for each dimension.
+By convention, we round the the nearest thousandth (e.g., 0.1042 -> 0.104).
 
 ## Root Crown Analysis Pipeline Flowchart
 
@@ -77,4 +84,30 @@ If you encounter an issues, please submit a GitHub issue: https://github.com/Top
 
 ## Additional Notes
 
-None at this time
+### Ludo & Usage 
+
+Originally, this pipeline was release on Ludo. The workflow is slightly different,
+as its files are not managed by Git and as of writing this, they are stored in
+`/media/topplab/EA6E84586E842005/scripts/rootCrownAnalysis3D`.
+
+You will need to run the scripts directly with the Python interpreter to use
+them on Ludo.
+
+```bash
+cd /media/topplab/EA6E84586E842005/scripts/rootCrownAnalysis3D/
+python raw2img.py -i ./myVolume/;
+python batch_segmentation.py -s 2 -i ./myVolume/;
+python batch_skeleton.py -i ./myVolume_3d_models/;
+python rootCrownImageAnalysis3D.py -s 2 -t 0.109 -i ./myVolume_thresholded_images/
+```
+
+This is a slight difference quality-of-life changes between the two instances of
+the pipeline. However, the code used to calculate the values for your results are
+the same.
+
+### Planned Development
+
+1. Parallelize `raw2img`
+2. Extract slice thickness for rootCrownImageAnalysis3D from `.dat`
+
+If you encounter any error, problem, or would like to suggest a feature, please submit a [git issue](https://github.com/Topp-Roots-Lab/3d-root-crown-analysis-pipeline/issues).
