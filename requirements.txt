@@ -2,4 +2,5 @@ numpy
 Pillow
 tqdm
 scikit-image
-sklearn
+scikit-learn
+opencv-python

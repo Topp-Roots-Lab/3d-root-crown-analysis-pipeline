@@ -9,6 +9,7 @@ Base on this CentOS 7 guide: https://www.vultr.com/docs/how-to-install-opencv-on
 #### OpenCV (from Source)
 
 ##### Step 1: Install dependencies for OpenCV
+
 ```bash
 # Add Okay repo for libav-devel
 dnf install http://repo.okay.com.mx/centos/8/x86_64/release/okay-release-1-3.el8.noarch.rpm
@@ -23,6 +24,7 @@ unzip 3.2.0.zip
 ```
 
 ##### Step 3: Compile and install OpenCV 3.3.0
+
 ```bash
 cd opencv-3.2.0
 mkdir -v build && cd build
@@ -40,6 +42,7 @@ ldconfig
 ```
 
 ##### Step 5 (optional): Run tests
+
 ```bash
 cd
 git clone https://github.com/opencv/opencv_extra.git
@@ -50,4 +53,20 @@ export OPENCV_TEST_DATA_PATH=/root/opencv_extra/testdata
 cd /root/opencv-3.3.0/build/bin
 ls
 ./opencv_test_photo
+```
+
+#### Python Modules
+
+```bash
+pip install -r requirements.txt
+```
+
+
+### Core files
+
+```bash
+# Clone repo
+git clone https://github.com/Topp-Roots-Lab/3d-root-crown-analysis-pipeline.git /opt/3drcap/
+# Create symlinks in /usr/local/bin
+find /opt/3drcap/src -type f | while read f; do ln -sv "$f" "/usr/local/bin/$(basename "${f%.*}")"; done
 ```
