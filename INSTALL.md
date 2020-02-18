@@ -6,6 +6,12 @@ Base on this CentOS 7 guide: https://www.vultr.com/docs/how-to-install-opencv-on
 
 ### Dependencies
 
+#### System-level dependencies
+
+```bash
+dnf install python2-devel python3-devel gcc gcc-c++
+```
+
 #### OpenCV (from Source)
 
 ##### Step 1: Install dependencies for OpenCV
@@ -55,13 +61,6 @@ ls
 ./opencv_test_photo
 ```
 
-#### Python Modules
-
-```bash
-pip install -r requirements.txt
-```
-
-
 ### Core files
 
 ```bash
@@ -69,4 +68,7 @@ pip install -r requirements.txt
 git clone https://github.com/Topp-Roots-Lab/3d-root-crown-analysis-pipeline.git /opt/3drcap/
 # Create symlinks in /usr/local/bin
 find /opt/3drcap/src -type f | while read f; do ln -sv "$f" "/usr/local/bin/$(basename "${f%.*}")"; done
+# Install Python modules for versions 2 and 3
+pip install -r /opt/3drcap/requirements.txt
+pip2 install -r /opt/3drcap/requirements.txt
 ```
