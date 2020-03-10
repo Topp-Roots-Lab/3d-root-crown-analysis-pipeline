@@ -24,6 +24,7 @@ def options():
     parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
     parser.add_argument("-V", "--version", action="version", version='%(prog)s 1.1.0')
     parser.add_argument('-i', "--input_folder", help="Deprecated. Directory of .raw files")
+    parser.add_argument('-t', "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
     parser.add_argument('--force', action="store_true", help="Force file creation and overwrite existing files. You will be.warninged about which files are replaced.")
     parser.add_argument('-f', "--format", default='png', help="Set image filetype. Availble options: ['png', 'tif']")
     parser.add_argument("path", metavar='PATH', type=str, nargs='+', help='List of directories to process')
@@ -53,8 +54,6 @@ def options():
 
     return args
 
-
-
 def get_volume_dimensions(args, fp):
     with open(os.path.join(args.cwd, fp), 'r') as ifp:
         line = ifp.readlines()[1]
@@ -77,11 +76,17 @@ def slice_to_img(df):
     digits = len(str(z))
     num_format = '{:0'+str(digits)+'d}'
 
-    slice = np.floor(slice * float((2 ** 8) - 1) / float((2 ** 16) - 1))
     slice = slice.reshape([y,x])
-    imgname = f"{args.imgs_dir}/{args.filename}_{num_format.format(i)}.png"
-    Image.fromarray(slice.astype('uint8')).save(os.path.join(args.imgs_dir, imgname))
-    
+    imgname = f"{args.imgs_dir}/{args.filename}_{num_format.format(i)}.{args.format}"
+    if args.format == 'tif':
+        datatype = 'uint16'
+    elif args.format == 'png':
+        slice = np.floor(slice * float((2 ** 8) - 1) / float((2 ** 16) - 1))
+        datatype = 'uint8'
+    else:
+        datatype = 'uint8'
+
+    Image.fromarray(slice.astype(datatype)).save(os.path.join(args.imgs_dir, imgname))
 
 def extract_slices(args):
     global pbar
@@ -95,6 +100,7 @@ def extract_slices(args):
             for filename in files:
                 basename, extension = os.path.splitext(filename)
                 if extension == '.raw':
+                    args.filename = basename
                     dat_filename = basename + '.dat'
                     x, y, z = get_volume_dimensions(args, dat_filename)
                     logging.debug(f"Volume dimensions:  <{x}, {y}, {z}>")
@@ -105,6 +111,7 @@ def extract_slices(args):
                     else:
                         logging.warning(f"Output directory for slices already exists '{imgs_dir}'.")
 
+                    args.imgs_dir = imgs_dir
                     # Pad the index for the slice in its filename based on the
                     # number of digits for the total count of slices
                     digits = len(str(z))
@@ -113,24 +120,23 @@ def extract_slices(args):
                     img_size = x*y
                     offset = img_size * np.dtype('uint16').itemsize
 
-                    slices = []
+                    slices = [] # make a job list of the slices to process
+                    # If a progress bar is not defined, create one
                     if pbar is None:
                         pbar = tqdm(total = z, desc=f"Extracting slices from {basename}") # progress bar
                     with open(os.path.join(folder, filename), 'rb') as f_data:
-                        # TODO(tparker): this is where a process should probably be spawn per slice
-                        for i in range(0, z):
-                            f_data.seek(i*offset)
-                            slice = np.fromfile(f_data, dtype = 'uint16', count = img_size, sep = "")
-                            slice = slice.reshape([y, x])
-                            imgname = basename + '_' + num_format.format(i)
-                            if args.format == 'png':
-                                slice1 = slice*255.0/65535.0
-                                slice1 = np.floor(slice1)
-                                Image.fromarray(slice1.astype('uint8')).save(os.path.join(imgs_dir, imgname+'.png'))
-                            if args.format == 'tif':
-                                Image.fromarray(slice.astype('uint16')).save(os.path.join(imgs_dir, imgname+'.tif'))
-                            pbar.update(1)
-                        pbar.close()
+                        with Pool(args.threads) as p:
+                            for i in range(0, z):
+                                f_data.seek(i*offset)
+                                chunk = np.fromfile(f_data, dtype='uint16', count = img_size, sep="")
+                                slices.append({
+                                    'args': args,
+                                    'data': chunk,
+                                    'dims': (x, y, z),
+                                    'index': i
+                                })
+                            p.map(slice_to_img, slices)
+                    pbar.close()
     except Exception as err:
         logging.error(err)
 
@@ -142,7 +148,7 @@ if __name__ == "__main__":
     # as the positional argument 'directories'.
     if args.input_folder:
         args.path = args.input_folder
-
+        args.format = lower(args.format)
     for d in args.path:
         args.cwd = os.path.realpath(d)
         logging.info(f"Processing '{args.cwd}")
