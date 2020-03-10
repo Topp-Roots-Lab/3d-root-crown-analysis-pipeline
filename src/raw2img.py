@@ -10,7 +10,7 @@ import argparse
 import logging
 import os
 from datetime import datetime as dt
-from multiprocessing import Pool, cpu_count
+from multiprocessing import cpu_count, Pool, Value
 
 import numpy as np
 from PIL import Image
@@ -63,21 +63,14 @@ def get_volume_dimensions(args, fp):
         return dims
 
 def slice_to_img(df):
+    """Convert byte data of a slice into an image"""
     global pbar
-
-    logging.debug(df)
-    logging.debug(df['dims'])
     args = df['args']
     slice = df['data']
     x, y, z = df['dims']
-    i = df['index']
-    # Pad the index for the slice in its filename based on the
-    # number of digits for the total count of slices
-    digits = len(str(z))
-    num_format = '{:0'+str(digits)+'d}'
+    ofp = df['ofp']
 
     slice = slice.reshape([y,x])
-    imgname = f"{args.imgs_dir}/{args.filename}_{num_format.format(i)}.{args.format}"
     if args.format == 'tif':
         datatype = 'uint16'
     elif args.format == 'png':
@@ -86,59 +79,91 @@ def slice_to_img(df):
     else:
         datatype = 'uint8'
 
-    Image.fromarray(slice.astype(datatype)).save(os.path.join(args.imgs_dir, imgname))
+    Image.fromarray(slice.astype(datatype)).save(ofp)
+    pbar.update(1)
 
 def extract_slices(args):
     global pbar
-
-    folder = args.cwd
-    parent_path = os.path.dirname(folder)
-
-    list_dirs = os.walk(folder)
+    
     try:
-        for root, dirs, files in list_dirs:
+        # Gather all files
+        args.files = []
+        for root, dirs, files in os.walk(args.cwd):
             for filename in files:
-                basename, extension = os.path.splitext(filename)
-                if extension == '.raw':
-                    args.filename = basename
-                    dat_filename = basename + '.dat'
-                    x, y, z = get_volume_dimensions(args, dat_filename)
-                    logging.debug(f"Volume dimensions:  <{x}, {y}, {z}>")
+                args.files.append(os.path.join(root, filename))
 
-                    imgs_dir = os.path.join(folder, basename)
-                    if not os.path.exists(imgs_dir):
-                        os.makedirs(imgs_dir)
-                    else:
-                        logging.warning(f"Output directory for slices already exists '{imgs_dir}'.")
-
-                    args.imgs_dir = imgs_dir
-                    # Pad the index for the slice in its filename based on the
-                    # number of digits for the total count of slices
-                    digits = len(str(z))
-                    num_format = '{:0'+str(digits)+'d}'
-
-                    img_size = x*y
-                    offset = img_size * np.dtype('uint16').itemsize
-
-                    slices = [] # make a job list of the slices to process
-                    # If a progress bar is not defined, create one
-                    if pbar is None:
-                        pbar = tqdm(total = z, desc=f"Extracting slices from {basename}") # progress bar
-                    with open(os.path.join(folder, filename), 'rb') as f_data:
-                        with Pool(args.threads) as p:
-                            for i in range(0, z):
-                                f_data.seek(i*offset)
-                                chunk = np.fromfile(f_data, dtype='uint16', count = img_size, sep="")
-                                slices.append({
-                                    'args': args,
-                                    'data': chunk,
-                                    'dims': (x, y, z),
-                                    'index': i
-                                })
-                            p.map(slice_to_img, slices)
-                    pbar.close()
+        # Get all RAW files
+        args.files = [ f for f in args.files if os.path.splitext(f)[1] == '.raw' ]
+        logging.info(f"Found '{len(args.files)}' volume(s).")
+        
+        # Validate that a DAT file exists for each volume
+        logging.debug("Validating DAT for each vol  ume")
+        for fp in args.files:
+            dat_fp = f"{os.path.splitext(fp)[0]}.dat" # .DAT filepath
+            logging.debug(f"Checking DAT: '{dat_fp}'")
+            # Try to extract the dimensions to make sure that the file exists
+            get_volume_dimensions(args, dat_fp)
     except Exception as err:
         logging.error(err)
+
+    # Otherwise, we know that a volume and its metadata exists
+    else:
+        # For each volume...
+        for fp in tqdm(args.files, desc=f"Converting volumes to '{args.format.lower()}' slices"):
+            logging.debug(f"Processing '{fp}'")
+            
+            # Set an images directory for the volume
+            imgs_dir = os.path.splitext(fp)[0]
+            logging.debug(f"Slices directory: '{imgs_dir}'")
+            dat_fp = f"{os.path.splitext(fp)[0]}.dat"
+            logging.debug(f"DAT filepath: '{dat_fp}'")
+            # Create images directory if does not exist
+            try:
+                if not os.path.exists(imgs_dir):
+                    os.makedirs(imgs_dir)
+                # else:
+                    # logging.warning(f"Output directory for slices already exists '{imgs_dir}'.")
+            except:
+                raise
+            # Images directory is created and ready
+            else:
+                # Get dimensions of the volume
+                x, y, z = get_volume_dimensions(args, dat_fp)
+                logging.debug(f"Volume dimensions:  <{x}, {y}, {z}>")
+
+                # Pad the index for the slice in its filename based on the
+                # number of digits for the total count of slices
+                digits = len(str(z))
+                num_format = '{:0'+str(digits)+'d}'
+
+                # Set slice dimensions
+                img_size = x * y
+                offset = img_size * np.dtype('uint16').itemsize
+                
+                # Extract data from volume, slice-by-slice
+                slices = []
+
+                # If a progress bar is not defined, create one
+                if pbar is None:
+                    pbar = tqdm(total = z, desc=f"Extracting slices from {os.path.basename(fp)}")
+                with open(fp, 'rb') as f_data:
+                    # Dedicate N CPUs for processing
+                    with Pool(args.threads) as p:
+                        # For each slice in the volume...
+                        for i in range(0, z):
+                            # Read slice data, and set job data for each process
+                            f_data.seek(i*offset)
+                            chunk = np.fromfile(f_data, dtype='uint16', count = img_size, sep="")
+                            slices.append({
+                                'args': args,
+                                'data': chunk,
+                                'dims': (x, y, z),
+                                'ofp': os.path.join(imgs_dir, f"{os.path.splitext(os.path.basename(fp))[0]}_{num_format.format(i)}.{args.format}")
+                            })
+                        # Process each slice of the volume across N processes
+                        p.map(slice_to_img, slices)
+            pbar.close()
+            pbar = None
 
 if __name__ == "__main__":
     args = options()
@@ -148,7 +173,7 @@ if __name__ == "__main__":
     # as the positional argument 'directories'.
     if args.input_folder:
         args.path = args.input_folder
-        args.format = lower(args.format)
+    args.format = args.format.lower()
     for d in args.path:
         args.cwd = os.path.realpath(d)
         logging.info(f"Processing '{args.cwd}")
