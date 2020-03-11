@@ -16,8 +16,6 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
-pbar = None
-
 def options():
     parser = argparse.ArgumentParser(description='Convert .raw 3d volume file to typical image format slices',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -25,7 +23,7 @@ def options():
     parser.add_argument("-V", "--version", action="version", version='%(prog)s 1.1.0')
     parser.add_argument('-i', "--input_folder", help="Deprecated. Directory of .raw files")
     parser.add_argument('-t', "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
-    parser.add_argument('--force', action="store_true", help="Force file creation and overwrite existing files. You will be.warninged about which files are replaced.")
+    parser.add_argument('--force', action="store_true", help="Force file creation. Overwrite any existing files.")
     parser.add_argument('-f', "--format", default='png', help="Set image filetype. Availble options: ['png', 'tif']")
     parser.add_argument("path", metavar='PATH', type=str, nargs='+', help='List of directories to process')
     args = parser.parse_args()
@@ -48,7 +46,6 @@ def options():
 
     consoleHandler = logging.StreamHandler()
     consoleHandler.setFormatter(logFormatter)
-    print(f"Logging level: {logging_level} (INFO = {logging.INFO}, DEBUG = {logging.DEBUG})")
     consoleHandler.setLevel(logging_level)
     rootLogger.addHandler(consoleHandler)
 
@@ -62,14 +59,8 @@ def get_volume_dimensions(args, fp):
             raise Exception(f"Unable to extract dimensions from DAT file: '{fp}'. Found dimensions: '{dims}'.")
         return dims
 
-def slice_to_img(df):
+def slice_to_img(args, slice, x, y, z, ofp):
     """Convert byte data of a slice into an image"""
-    global pbar
-    args = df['args']
-    slice = df['data']
-    x, y, z = df['dims']
-    ofp = df['ofp']
-
     slice = slice.reshape([y,x])
     if args.format == 'tif':
         datatype = 'uint16'
@@ -80,10 +71,10 @@ def slice_to_img(df):
         datatype = 'uint8'
 
     Image.fromarray(slice.astype(datatype)).save(ofp)
-    pbar.update(1)
 
 def extract_slices(args):
-    global pbar
+    def update(*args):
+        pbar.update()
     
     try:
         # Gather all files
@@ -94,13 +85,12 @@ def extract_slices(args):
 
         # Get all RAW files
         args.files = [ f for f in args.files if os.path.splitext(f)[1] == '.raw' ]
-        logging.info(f"Found '{len(args.files)}' volume(s).")
+        logging.info(f"Found {len(args.files)} volume(s).")
         
         # Validate that a DAT file exists for each volume
-        logging.debug("Validating DAT for each vol  ume")
         for fp in args.files:
             dat_fp = f"{os.path.splitext(fp)[0]}.dat" # .DAT filepath
-            logging.debug(f"Checking DAT: '{dat_fp}'")
+            logging.debug(f"Validating DAT file: '{dat_fp}'")
             # Try to extract the dimensions to make sure that the file exists
             get_volume_dimensions(args, dat_fp)
     except Exception as err:
@@ -143,9 +133,7 @@ def extract_slices(args):
                 # Extract data from volume, slice-by-slice
                 slices = []
 
-                # If a progress bar is not defined, create one
-                if pbar is None:
-                    pbar = tqdm(total = z, desc=f"Extracting slices from {os.path.basename(fp)}")
+                pbar = tqdm(total = z, desc=f"Extracting slices from {os.path.basename(fp)}")
                 with open(fp, 'rb') as f_data:
                     # Dedicate N CPUs for processing
                     with Pool(args.threads) as p:
@@ -154,16 +142,13 @@ def extract_slices(args):
                             # Read slice data, and set job data for each process
                             f_data.seek(i*offset)
                             chunk = np.fromfile(f_data, dtype='uint16', count = img_size, sep="")
-                            slices.append({
-                                'args': args,
-                                'data': chunk,
-                                'dims': (x, y, z),
-                                'ofp': os.path.join(imgs_dir, f"{os.path.splitext(os.path.basename(fp))[0]}_{num_format.format(i)}.{args.format}")
-                            })
-                        # Process each slice of the volume across N processes
-                        p.map(slice_to_img, slices)
-            pbar.close()
-            pbar = None
+                            ofp = os.path.join(imgs_dir, f"{os.path.splitext(os.path.basename(fp))[0]}_{num_format.format(i)}.{args.format}")
+                            # Process each slice of the volume across N processes
+                            p.apply_async(slice_to_img, args=(args, chunk, x, y, z, ofp), callback=update)
+                        p.close()
+                        p.join()
+                pbar.close()
+                pbar = None
 
 if __name__ == "__main__":
     args = options()
