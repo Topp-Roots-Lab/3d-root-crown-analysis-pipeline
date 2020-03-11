@@ -146,6 +146,7 @@ def extract_slices(args, fp):
                     ofp = os.path.join(imgs_dir, f"{os.path.splitext(os.path.basename(fp))[0]}_{num_format.format(i)}.{args.format}")
                     # Check if the image already exists
                     if os.path.exists(ofp) and not args.force:
+                        pbar.update()
                         continue
                     # Process each slice of the volume across N processes
                     p.apply_async(slice_to_img, args=(args, chunk, x, y, ofp), callback=update)
