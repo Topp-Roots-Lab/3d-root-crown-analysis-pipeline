@@ -22,7 +22,7 @@ def options():
 
     parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
     parser.add_argument("-V", "--version", action="version", version='%(prog)s 1.1.0')
-    parser.add_argument('-i', "--input_folder", default="disabled", help="Deprecated. Data folder.") # left in for backwards compatibility
+    parser.add_argument('-i', "--input_folder", action="store_true", help="Deprecated. Data folder.") # left in for backwards compatibility
     parser.add_argument('-t', "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
     parser.add_argument('--force', action="store_true", help="Force file creation. Overwrite any existing files.")
     parser.add_argument('-f', "--format", default='png', help="Set image filetype. Availble options: ['png', 'tif']")
