@@ -107,7 +107,6 @@ the same.
 
 ### Planned Development
 
-1. Parallelize `raw2img`
-2. Extract slice thickness for rootCrownImageAnalysis3D from `.dat`
+1. Extract slice thickness for rootCrownImageAnalysis3D from `.dat`
 
 If you encounter any error, problem, or would like to suggest a feature, please submit a [git issue](https://github.com/Topp-Roots-Lab/3d-root-crown-analysis-pipeline/issues).
