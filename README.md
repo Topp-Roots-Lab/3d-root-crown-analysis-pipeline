@@ -45,6 +45,33 @@ associated with the volume. The slice thickness is the real-world thickness,
 in millimeters, of each slice. They should be the same for each dimension.
 By convention, we round the the nearest thousandth (e.g., 0.1042 -> 0.104).
 
+### Help
+```txt
+usage: raw2img.py [-h] [-v] [-V] [-i INPUT_FOLDER] [-t THREADS] [--force]
+                  [-f FORMAT]
+                  PATH [PATH ...]
+
+Convert .raw 3d volume file to typical image format slices
+
+positional arguments:
+  PATH                  Input directory to process
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --verbose         Increase output verbosity (default: False)
+  -V, --version         show program's version number and exit
+  -i INPUT_FOLDER, --input_folder INPUT_FOLDER
+                        Deprecated. Data folder. (default: disabled)
+  -t THREADS, --threads THREADS
+                        Maximum number of threads dedicated to processing.
+                        (default: <all CPUs>)
+  --force               Force file creation. Overwrite any existing files.
+                        (default: False)
+  -f FORMAT, --format FORMAT
+                        Set image filetype. Availble options: ['png', 'tif']
+                        (default: png)
+```
+
 ## Root Crown Analysis Pipeline Flowchart
 
 This is an overview of the execution sequence for analyzing root crown x-ray
