@@ -10,11 +10,12 @@ import argparse
 import logging
 import os
 from datetime import datetime as dt
-from multiprocessing import cpu_count, Pool, Value
+from multiprocessing import Pool, Value, cpu_count
 
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
+
 
 def options():
     parser = argparse.ArgumentParser(description='Convert .raw 3d volume file to typical image format slices',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -52,6 +53,17 @@ def options():
     return args
 
 def get_volume_dimensions(args, fp):
+    """Get the x, y, z dimensions of a volume.
+
+    Args:
+        args (Namespace): arguments object
+        fp (str): .DAT filepath
+
+    Returns:
+        (int, int, int): x, y, z dimensions of volume as a tuple
+
+    """
+
     with open(os.path.join(args.cwd, fp), 'r') as ifp:
         line = ifp.readlines()[1]
         dims = [int(s) for s in line.split() if s.isdigit()]
@@ -59,8 +71,17 @@ def get_volume_dimensions(args, fp):
             raise Exception(f"Unable to extract dimensions from DAT file: '{fp}'. Found dimensions: '{dims}'.")
         return dims
 
-def slice_to_img(args, slice, x, y, z, ofp):
-    """Convert byte data of a slice into an image"""
+def slice_to_img(args, slice, x, y, ofp):
+    """Convert byte data of a slice into an image
+
+    Args:
+        args (Namespace): arguments object
+        slice (numpy.ndarray): slice data
+        x (int): width of the slice as an image
+        y (int): height of the slice as an image
+        ofp (str): intended output path of the image to be saved
+
+    """
     slice = slice.reshape([y,x])
     if args.format == 'tif':
         datatype = 'uint16'
@@ -73,6 +94,12 @@ def slice_to_img(args, slice, x, y, z, ofp):
     Image.fromarray(slice.astype(datatype)).save(ofp)
 
 def extract_slices(args):
+    """Extract each slice of a volume, one by one and save it as an image
+
+    Args:
+        args (Namespace): arguments object
+
+    """
     def update(*args):
         pbar.update()
     
@@ -99,7 +126,7 @@ def extract_slices(args):
     # Otherwise, we know that a volume and its metadata exists
     else:
         # For each volume...
-        for fp in tqdm(args.files, desc=f"Converting volumes to '{args.format.lower()}' slices"):
+        for fp in tqdm(args.files, desc=f"Overall progress"):
             logging.debug(f"Processing '{fp}'")
             
             # Set an images directory for the volume
@@ -143,8 +170,11 @@ def extract_slices(args):
                             f_data.seek(i*offset)
                             chunk = np.fromfile(f_data, dtype='uint16', count = img_size, sep="")
                             ofp = os.path.join(imgs_dir, f"{os.path.splitext(os.path.basename(fp))[0]}_{num_format.format(i)}.{args.format}")
+                            # Check if the image already exists
+                            if os.path.exists(ofp) and not args.force:
+                                continue
                             # Process each slice of the volume across N processes
-                            p.apply_async(slice_to_img, args=(args, chunk, x, y, z, ofp), callback=update)
+                            p.apply_async(slice_to_img, args=(args, chunk, x, y, ofp), callback=update)
                         p.close()
                         p.join()
                 pbar.close()
@@ -156,10 +186,16 @@ if __name__ == "__main__":
     # backwards compatibility. In the future, I would like to remove it. If
     # the user defines the input_folder, then replace any paths provided
     # as the positional argument 'directories'.
-    if args.input_folder:
-        args.path = args.input_folder
+    # if args.input_folder:
+        # args.path = args.input_folder
+    # Change format to always be lowercase
     args.format = args.format.lower()
+    args.path = list(set(args.path))
+
+    # For each provided directory...
     for d in args.path:
+        # Set the current working directory
         args.cwd = os.path.realpath(d)
         logging.info(f"Processing '{args.cwd}")
+        # Extract slices for all volumes in provided folder
         extract_slices(args)
