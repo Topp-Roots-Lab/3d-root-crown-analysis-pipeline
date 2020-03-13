@@ -72,3 +72,25 @@ find /opt/3drcap/src -type f | while read f; do ln -sv "$f" "/usr/local/bin/$(ba
 pip install -r /opt/3drcap/requirements.txt
 pip2 install -r /opt/3drcap/requirements.txt
 ```
+
+## Ubuntu 18.04 Guide
+
+### Dependencies
+
+#### System-level dependencies
+
+```bash
+apt install libopencv-core3.2 libopencv-imgcodecs3.2 python2.7 python2.7-dev python3 python3-dev gcc gcc-c++
+```
+
+### Core files
+
+```bash
+# Clone repo
+git clone https://github.com/Topp-Roots-Lab/3d-root-crown-analysis-pipeline.git /opt/3drcap/
+# Create symlinks in /usr/local/bin
+find /opt/3drcap/src -type f | while read f; do ln -sv "$f" "/usr/local/bin/$(basename "${f%.*}")"; done
+# Install Python modules for versions 2 and 3
+pip install -r /opt/3drcap/requirements.txt
+pip2 install -r /opt/3drcap/requirements.txt
+```
