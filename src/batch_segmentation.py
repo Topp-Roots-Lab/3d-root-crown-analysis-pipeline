@@ -4,18 +4,18 @@ import argparse
 import logging
 import os
 import shutil
-from datetime import datetime as dt
-from multiprocessing import Pool, Value, cpu_count
 import subprocess
+from datetime import datetime as dt
+from multiprocessing import Pool, cpu_count
 
-import sys
 from tqdm import tqdm
 
 
 def options():
+    VERSION = "1.2.0"
     parser = argparse.ArgumentParser(description='Root Crowns Segmentation',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
-    parser.add_argument("-V", "--version", action="version", version='%(prog)s 1.1.0')
+    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {VERSION}')
     parser.add_argument('-t', "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
     parser.add_argument("path", metavar='PATH', type=str, nargs='+', help='Input directory to process')
 
@@ -54,6 +54,8 @@ def options():
         args.soil = 1
     else:
         args.soil = 0
+
+    logging.debug(f'Running {__file__} {VERSION}')
 
     return args
 
@@ -120,12 +122,12 @@ if __name__ == "__main__":
         pbar.update()
 
     # Process data
-    pbar = tqdm(total = len(cmd_list), desc=f"Processing volumes")
+    pbar = tqdm(total = len(cmd_list), desc=f"Segmenting volumes")
     # Dedicate N CPUs for processing
     with Pool(args.threads) as p:
         # For each slice in the volume...
         for cmd in cmd_list:
-            # Read slice data, and set job data for each process
+            # Run command as separate process
             p.apply_async(run, args=(cmd,), callback=update)
         p.close()
         p.join()

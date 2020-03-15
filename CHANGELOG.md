@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.2.0 - 2020-03-15
+
+### Added
+
+- Logging for `batch_skeleton` and `batch_segmentation`
+
+### Changed
+
+- Parallelized segmentation and skeletonization at the process level (not internally)
+
 ## v1.1.0 - 2020-03-11
 
 ### Added
