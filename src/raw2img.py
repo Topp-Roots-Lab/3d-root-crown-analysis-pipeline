@@ -50,6 +50,14 @@ def options():
     consoleHandler.setLevel(logging_level)
     rootLogger.addHandler(consoleHandler)
 
+    # Make sure user does not request more CPUs can available
+    if args.threads > cpu_count():
+        args.threads = cpu_count()
+
+    # Change format to always be lowercase
+    args.format = args.format.lower()
+    args.path = list(set(args.path)) # remove any duplicates
+
     return args
 
 def get_volume_dimensions(args, fp):
@@ -157,10 +165,6 @@ def extract_slices(args, fp):
 
 if __name__ == "__main__":
     args = options()
-
-    # Change format to always be lowercase
-    args.format = args.format.lower()
-    args.path = list(set(args.path)) # remove any duplicates
 
     # Collect all volumes and validate their metadata
     try:
