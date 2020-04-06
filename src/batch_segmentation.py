@@ -87,7 +87,7 @@ if __name__ == "__main__":
 
     # Create threshold and model folders
     for fp in set([ os.path.dirname(path) for path in args.path ]):
-        thresholded_folder = f"{fp}_tresholded_images"
+        thresholded_folder = f"{fp}_thresholded_images"
         model_folder = f"{fp}_3d_models"
 
         if not os.path.exists(thresholded_folder):
@@ -98,7 +98,7 @@ if __name__ == "__main__":
     # For each provided input folder, build a command for each volume
     cmd_list = []
     for fp in args.path:
-        thresholded_folder = f"{os.path.dirname(fp)}_tresholded_images"
+        thresholded_folder = f"{os.path.dirname(fp)}_thresholded_images"
         model_folder = f"{os.path.dirname(fp)}_3d_models"
 
         # Create paths to the output files
