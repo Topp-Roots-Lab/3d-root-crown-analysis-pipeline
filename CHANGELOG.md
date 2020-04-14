@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.4.0 - 2020-04-13
+
+### Added
+
+- Rudimentary script, `check_tresholded_images.py`, to check for bad segmentations
+
+### Changed
+
+- Version is pulled from `__init__.py`
+- Changed file structure so name conformed to package name restrictions
+
 ## v1.2.0 - 2020-03-15
 
 ### Added
