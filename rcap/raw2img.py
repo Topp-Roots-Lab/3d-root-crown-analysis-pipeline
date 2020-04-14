@@ -16,12 +16,13 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
+from __init__ import __version__
+
 
 def options():
-    VERSION = "1.2.0"
     parser = argparse.ArgumentParser(description='Convert .raw 3d volume file to typical image format slices',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
-    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {VERSION}')
+    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
     parser.add_argument('-i', "--input_folder", action="store_true", help="Deprecated. Data folder.") # left in for backwards compatibility
     parser.add_argument('-t', "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
     parser.add_argument('--force', action="store_true", help="Force file creation. Overwrite any existing files.")
@@ -58,7 +59,7 @@ def options():
     args.format = args.format.lower()
     args.path = list(set(args.path)) # remove any duplicates
 
-    logging.debug(f'Running {__file__} {VERSION}')
+    logging.debug(f'Running {__file__} {__version__}')
 
     return args
 
@@ -193,7 +194,6 @@ if __name__ == "__main__":
     except Exception as err:
         logging.error(err)
     else:
-        pass
         # For each provided directory...
         for fp in tqdm(args.files, desc=f"Overall progress"):
             logging.debug(f"Processing '{fp}'")

@@ -10,12 +10,13 @@ from multiprocessing import Pool, cpu_count
 
 from tqdm import tqdm
 
+from __init__ import __version__
+
 
 def options():
-    VERSION = "1.2.0"
     parser = argparse.ArgumentParser(description='Root Crowns Segmentation',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
-    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {VERSION}')
+    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
     parser.add_argument('-t', "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
     parser.add_argument("path", metavar='PATH', type=str, nargs='+', help='Input directory to process')
 
@@ -55,7 +56,7 @@ def options():
     else:
         args.soil = 0
 
-    logging.debug(f'Running {__file__} {VERSION}')
+    logging.debug(f'Running {__file__} {__version__}')
 
     return args
 

@@ -109,3 +109,4 @@ venv.bak/
 
 # Extra
 data/
+*.csv
