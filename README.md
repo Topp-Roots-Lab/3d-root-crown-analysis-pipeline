@@ -11,10 +11,10 @@ This set of scripts is used to analyze 3-D volumes of maize root crowns.
 - [Input & Output](#input-&-output)
 - [Usage](#usage)
 - [Descriptions](#description)
+- [Workflow](#workflow)
 - [Troubleshooting](#troubleshooting)
 - [Additional Information](#additional-information)
- - [Ludo & Usage](#ludo-usage)
- - [Planned Development](#planned-development)
+  - [Planned Development](#planned-development)
 ## Input & Output
 
 ### Input
@@ -33,10 +33,10 @@ calculated from the provided volume.
 An example run of the entire pipeline (omitting meshlabserver) is as follows:
 
 ```bash
-raw2img -i ./myVolume/
-batch_segmentation -s 2 -i ./myVolume/
-batch_skeleton -i ./myVolume_3d_models/
-rootCrownImageAnalysis3D -s 2 -t 0.104 -i ./myVolume_thresholded_images/
+raw2img -t 8 /path/to/volume;
+batch_segmentation -t 8 /path/to/volume;
+batch_skeleton -t 8 /path/to/volume_3d_models;
+rootCrownImageAnalysis3D -s 2 -t 0.109 -i /path/to/volume_thresholded_images
 ```
 
 By convention, the sampling, denotated by `-s` flag, is set as 2.
@@ -45,32 +45,6 @@ associated with the volume. The slice thickness is the real-world thickness,
 in millimeters, of each slice. They should be the same for each dimension.
 By convention, we round the the nearest thousandth (e.g., 0.1042 -> 0.104).
 
-### Help
-```txt
-usage: raw2img.py [-h] [-v] [-V] [-i INPUT_FOLDER] [-t THREADS] [--force]
-                  [-f FORMAT]
-                  PATH [PATH ...]
-
-Convert .raw 3d volume file to typical image format slices
-
-positional arguments:
-  PATH                  Input directory to process
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -v, --verbose         Increase output verbosity (default: False)
-  -V, --version         show program's version number and exit
-  -i INPUT_FOLDER, --input_folder INPUT_FOLDER
-                        Deprecated. Data folder. (default: disabled)
-  -t THREADS, --threads THREADS
-                        Maximum number of threads dedicated to processing.
-                        (default: <all CPUs>)
-  --force               Force file creation. Overwrite any existing files.
-                        (default: False)
-  -f FORMAT, --format FORMAT
-                        Set image filetype. Availble options: ['png', 'tif']
-                        (default: png)
-```
 
 ## Root Crown Analysis Pipeline Flowchart
 
@@ -105,32 +79,76 @@ Currently, this module also produces the skeleton of the root system as well.
 Analyzes the root system based on the binary image stack and calculates traits
 for the root system.
 
+## Workflow
+The pipeline is installed as a system-wide tool, so you will not need to navigate to it. The following commands can be called from any location so long as you are logged in via SSH or have a terminal open on the machine. Only one step will require user input: rootCrownImageAnalysis3D, but keep in mind that additional flag/options are available to tweak how the data is processed (e.g., sampling).
+
+### 1. Convert 3-D Volume to Grayscale 2-D Slices
+
+**Example**
+
+    raw2img -t 10 /path/to/myVolume/
+
+This folder should contain the .raw and .dat files.
+
+This script creates sub-folders for each volume with extract grayscale images for each.
+
+Note on threads: The -t option allows you to dedicate a maximum number of CPUs dedicated to processing your data. This applies to every step but the final one, rootCrownImageAnalysis3D. For Viper, generally you do not get a performance increase beyond using 30 threads. For Ludo, we recommend using no more than 8 threads.
+
+### 2. Segmentation: Create Binary 2-D Slices & Generate Point Cloud
+
+Be aware that this is one of two scripts that may require input at the end of the command (when you call the script, you can type -h for “help” at the end to get more description of what the input means and what options are available). By default the sampling is set to 2; this will downsample the data by half.
+
+**Example**
+
+    batch_segmentation -t 10 /path/to/myVolume/
+
+This folder should contain the .raw and .dat files.
+This script creates two sibling folders: /path/to/myVolume_3d_models/ and /path/to/myVolume_thresholded_images. Respectively, the first will contain point cloud data and the second will contain binary images.
+
+#### Quality Control
+
+Segmentation sometimes results in invalid point cloud data and binary images (stored in /path/to/myVolume_thresholded_images/). This may manifest as larger than expected point cloud data (.obj & .out) and binary images that primarily consist of white pixels.
+
+If any point cloud data is several times larger than the median, check its respective binary images for completely white slices. If you find a large number of white slices, delete the slices that cover the same range in the grayscale images (output of raw2img), delete the generated thresholded_images folder, and then re-run this step of the pipeline.
+
+If done correctly, batch_segmentation should run faster, if only marginally, than the last attempt and the file sizes should be more loosely uniformly distributed.
+
+### 3. Generate 3-D Mesh and Skeleton
+
+Run the batch_skeleton script on the desired slices folder (at this point, the scripts are sequentially run on the output of previous scripts and file path will need to include path of metadata created in the previous script)
+
+**Example**
+
+    batch_skeleton -t 10 /path/to/myVolume_3d_models/
+
+This folder should contain point cloud data: .obj and .out.
+This script will transform the point cloud data into meshes for quality control: .wrl files.
+
+#### Quality Control
+
+To further verify that segmentation was performed correctly, view the generated meshes in a 3-D model viewer such as Meshlab. Generally, make sure that the mesh generated looks like a real-world root system. Look out for solid planes that slice through the mesh and doubled root tips. The latter may indicate a mishap during reconstruction with the NSI software and can be reconstructed again to salvage the sample. Check with your supervisor for specifics on quality control for the meshes.
+
+### 4. Measure Traits from Binary 2-D Slices
+
+This script requires additional input from the user; keep in mind that -s does not mean the same thing as in the previous script and -t requires the resolution of the scans being analyzed to follow in millimeters. For resolution in μm, move the decimal three spaces to the left. The resolution should be a part of the volume’s filename, it is also stored as the SliceThickness value in its .dat file. By convention, we round this to the nearest thousandth.
+
+**Example**
+
+    rootCrownImageAnalysis3D -s 2 -t 0.104 -i /path/to/myVolume_thresholded_images/
+
+This folder should contain the binary images generated by the segmentation step.
+This script generates a .CSV of the measured traits for each volume.
+
+**Done!** See below for additional information on running multiple projects in succession and available options for each script.
+
+
 ## Troubleshooting
 
 If you encounter an issues, please submit a GitHub issue: https://github.com/Topp-Roots-Lab/3d-root-crown-analysis-pipeline/issues
 
-## Additional Notes
+## Additional Information
 
-### Ludo & Usage 
-
-Originally, this pipeline was release on Ludo. The workflow is slightly different,
-as its files are not managed by Git and as of writing this, they are stored in
-`/media/topplab/EA6E84586E842005/scripts/rootCrownAnalysis3D`.
-
-You will need to run the scripts directly with the Python interpreter to use
-them on Ludo.
-
-```bash
-cd /media/topplab/EA6E84586E842005/scripts/rootCrownAnalysis3D/
-python raw2img.py -i ./myVolume/;
-python batch_segmentation.py -s 2 -i ./myVolume/;
-python batch_skeleton.py -i ./myVolume_3d_models/;
-python rootCrownImageAnalysis3D.py -s 2 -t 0.109 -i ./myVolume_thresholded_images/
-```
-
-This is a slight difference quality-of-life changes between the two instances of
-the pipeline. However, the code used to calculate the values for your results are
-the same.
+None at this time.
 
 ### Planned Development
 
