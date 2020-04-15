@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.4.1 - 2020-04-14
+
+### Fixed
+
+- `check_tresholded_images.py` to only take folder as input
+
 ## v1.4.0 - 2020-04-14
 
 ### Added
