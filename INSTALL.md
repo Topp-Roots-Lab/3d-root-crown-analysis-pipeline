@@ -80,7 +80,7 @@ pip2 install -r /opt/3drcap/requirements.txt
 #### System-level dependencies
 
 ```bash
-apt install libopencv-core3.2 libopencv-imgcodecs3.2 python2.7 python2.7-dev python3 python3-dev gcc gcc-c++
+apt install libopencv-core3.2 libopencv-imgcodecs3.2 python2.7 python2.7-dev python3 python3-dev gcc g++
 ```
 
 ### Core files
