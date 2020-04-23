@@ -21,7 +21,6 @@ def parse_options():
   parser.add_argument('-t', "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
   parser.add_argument("-f", "--force", action="store_true", help="Force file creation. Overwrite any existing files.")
   parser.add_argument("-p", "--probability", type=float, default=0.05, help="Probability that a point will be kept ")
-  parser.add_argument("-s", "--seed", type=int, help="Set seed for random sampling.")
   parser.add_argument("path", metavar='PATH', type=str, nargs='+', help='Input directory to process. Must contain folder with thresholded images.')
   args = parser.parse_args()
 
