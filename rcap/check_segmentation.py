@@ -69,7 +69,7 @@ if __name__ == "__main__":
   # Collect all volumes and validate their metadata
   try:
     # Gather all files
-    args.path = [ f'{p}_thresholded_images' for p in args.path ]
+    args.path = [ f'{p}_thresholded_images' for p in args.path if os.path.isdir(p) ]
     args.path = list(set(args.path)) # remove duplicates
     for fp in args.path:
       if not os.path.isdir(fp):
@@ -87,6 +87,7 @@ if __name__ == "__main__":
       volume_paths = []
       for parent_path in args.path:
         volume_paths.extend( [ os.path.join(parent_path, vp) for vp in os.listdir(parent_path) ] )
+      volume_paths = [ vp for vp in volume_paths if os.path.isdir(vp) ]
       for fp in tqdm(volume_paths, desc=f"Overall progress"):
         logging.debug(f"Processing '{fp}'")
         # Extract slices for all volumes in provided folder
