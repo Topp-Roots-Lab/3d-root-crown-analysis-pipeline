@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.5.0 - 2020-04-23
+
+### Added
+
+- Script to downsample point cloud data for quality control version of point cloud data
+- Added cutoff value to input options for binary image segmentation script
+
+### Changed
+
+- Renamed quality control script for binary images
+
 ## v1.4.1 - 2020-04-14
 
 ### Fixed
