@@ -94,3 +94,8 @@ find /opt/3drcap/src -type f | while read f; do ln -sv "$f" "/usr/local/bin/$(ba
 pip install -r /opt/3drcap/requirements.txt
 pip2 install -r /opt/3drcap/requirements.txt
 ```
+
+### Compile C++ Binaries
+```bash
+g++ -o bin/rootCrownSegmentation src/rootCrownSegmentation.cpp -lopencv_highgui -lopencv_imgcodecs -lopencv_imgproc -lopencv_core
+```
