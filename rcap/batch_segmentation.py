@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3.8
 # -*- coding: utf-8 -*-
 import argparse
 import logging
