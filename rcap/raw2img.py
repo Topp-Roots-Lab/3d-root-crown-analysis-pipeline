@@ -13,13 +13,13 @@ import re
 from datetime import datetime as dt
 from functools import reduce
 from multiprocessing import Pool, cpu_count
+from time import time
 
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
 from __init__ import __version__
-
 
 prod = lambda x,y: x * y
 
@@ -108,13 +108,12 @@ def get_volume_dimensions(args, fp):
     """
     with open(fp, 'r') as ifp:
         for line in ifp.readlines():
-            logging.debug(line)
+            # logging.debug(line.strip())
             pattern_old = r'\s+<Resolution X="(?P<x>\d+)"\s+Y="(?P<y>\d+)"\s+Z="(?P<z>\d+)"'
             pattern = r'Resolution\:\s+(?P<x>\d+)\s+(?P<y>\d+)\s+(?P<z>\d+)'
 
             # See if the DAT file is the newer version
             match = re.match(pattern, line, flags=re.IGNORECASE)
-            logging.debug(f"Match to current version: {match}")
             # Otherwise, check the old version (XML)
             if match is None:
                 match = re.match(pattern_old, line, flags=re.IGNORECASE)
@@ -126,6 +125,7 @@ def get_volume_dimensions(args, fp):
                 break
 
         if match is not None:
+            logging.debug(f"Match: {match}")
             dims = [ match.group('x'), match.group('y'), match.group('z') ]
             dims = [ int(d) for d in dims ]
 
@@ -149,7 +149,7 @@ def get_volume_slice_thickness(args, fp):
     """
     with open(fp, 'r') as ifp:
         for line in ifp.readlines():
-            logging.debug(line)
+            # logging.debug(line.strip())
             pattern = r'\w+\:\s+(?P<xth>\d+\.\d+)\s+(?P<yth>\d+\.\d+)\s+(?P<zth>\d+\.\d+)'
             match = re.match(pattern, line, flags=re.IGNORECASE)
             if match is None:
@@ -157,7 +157,6 @@ def get_volume_slice_thickness(args, fp):
             else:
                 logging.debug(f"Match: {match}")
                 df = match.groupdict()
-                logging.debug(df)
                 dims = [ match.group('xth'), match.group('yth'), match.group('zth') ]
                 dims = [ float(s) for s in dims ]
                 if not dims or len(dims) != 3:
@@ -216,6 +215,7 @@ def extract_slices(args, fp):
         logging.debug(f"Slice thicknesses:  <{xth}, {yth}, {zth}> for '{fp}'")
 
         bitdepth = determine_bit_depth(fp, (x,y,z), (xth, yth, zth))
+        logging.debug(f"Detected bit depth: '{bitdepth}' for '{fp}'")
 
         # Pad the index for the slice in its filename based on the
         # number of digits for the total count of slices
@@ -230,25 +230,17 @@ def extract_slices(args, fp):
         # Equate the image format to numpy dtype
         if args.format == 'tif':
             image_bitdepth = 'uint16'
-            target_factor = 16
         elif args.format == 'png':
             image_bitdepth = 'uint8'
-            target_factor = 8
         else:
             image_bitdepth = 'uint8'
-            target_factor = 8
+
+        target_factor = 8 * np.dtype(image_bitdepth).itemsize
 
         # When .RAW bit depth is *not* the same as the output image bit depth,
         # the data needs to be remapped from original bit depth to desired
         # image bit dpeth
-        if bitdepth == 'uint8':
-            input_factor = 8
-        elif bitdepth == 'uint16':
-            input_factor = 16
-        elif bitdepth == 'float32':
-            input_factor = 32
-        else:
-            input_factor = 16 # assume 16-bit volume
+        input_factor = 8 * np.dtype(bitdepth).itemsize
 
         # Extract data from volume, slice-by-slice
         slices = []
@@ -277,6 +269,7 @@ def extract_slices(args, fp):
 
 if __name__ == "__main__":
     args = options()
+    start_time = time()
 
     # Collect all volumes and validate their metadata
     try:
@@ -308,3 +301,5 @@ if __name__ == "__main__":
             logging.debug(f"Processing '{fp}'")
             # Extract slices for all volumes in provided folder
             extract_slices(args, fp)
+
+    logging.debug(f'Total execution time: {time() - start_time} seconds')
