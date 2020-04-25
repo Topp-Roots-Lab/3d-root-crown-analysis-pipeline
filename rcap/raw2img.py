@@ -9,7 +9,9 @@ Created on Jul 27, 2018
 import argparse
 import logging
 import os
+import re
 from datetime import datetime as dt
+from functools import reduce
 from multiprocessing import Pool, cpu_count
 
 import numpy as np
@@ -18,6 +20,8 @@ from tqdm import tqdm
 
 from __init__ import __version__
 
+
+prod = lambda x,y: x * y
 
 def options():
     parser = argparse.ArgumentParser(description='Convert .raw 3d volume file to typical image format slices',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -63,6 +67,34 @@ def options():
 
     return args
 
+def determine_bit_depth(fp, dims, resolutions):
+    """Determine the bit depth of a .RAW based on its dimensions and slick thickness (i.e., resolution)
+
+    Args:
+        fp (str): file path to .RAW
+        dims (x, y, z): dimensions of .RAW extracted
+        resolutions (xth, yth, zth): thickness of each slice for each dimension
+
+    Returns:
+        str: numpy dtype encoding of bit depth
+    """
+    file_size = os.stat(fp).st_size
+    minimum_size = reduce(prod, dims) # get product of dimensions
+    logging.debug(f"Minimum calculated size of '{fp}' is {minimum_size} bytes")
+    if file_size == minimum_size:
+        return 'uint8'
+    elif file_size == minimum_size * 2:
+        return 'uint16'
+    elif file_size == minimum_size * 4:
+        return 'float32'
+    else:
+        if file_size < minimum_size:
+            logging.warning(f"Detected possible data corruption. File is smaller than expected '{fp}'. Expected at <{file_size * 2}> bytes but found <{file_size}> bytes. Defaulting to unsigned 16-bit.")
+            return 'uint16'
+        else:
+            logging.warning(f"Unable to determine bit-depth of volume '{fp}'. Expected at <{file_size * 2}> bytes but found <{file_size}> bytes. Defaulting to unsigned 16-bit.")
+            return 'uint16'
+
 def get_volume_dimensions(args, fp):
     """Get the x, y, z dimensions of a volume.
 
@@ -79,7 +111,7 @@ def get_volume_dimensions(args, fp):
             logging.debug(line)
             pattern_old = r'\s+<Resolution X="(?P<x>\d+)"\s+Y="(?P<y>\d+)"\s+Z="(?P<z>\d+)"'
             pattern = r'Resolution\:\s+(?P<x>\d+)\s+(?P<y>\d+)\s+(?P<z>\d+)'
-            
+
             # See if the DAT file is the newer version
             match = re.match(pattern, line, flags=re.IGNORECASE)
             logging.debug(f"Match to current version: {match}")
@@ -92,11 +124,11 @@ def get_volume_dimensions(args, fp):
             else:
                 logging.debug(f"Text/plain format detected for '{fp}'")
                 break
-    
+
         if match is not None:
             dims = [ match.group('x'), match.group('y'), match.group('z') ]
             dims = [ int(d) for d in dims ]
-            
+
             # Found the wrong number of dimensions
             if not dims or len(dims) != 3:
                 raise Exception(f"Unable to extract dimensions from DAT file: '{fp}'. Found dimensions: '{dims}'.")
@@ -133,7 +165,7 @@ def get_volume_slice_thickness(args, fp):
                 return dims
         return (None, None, None) # workaround for the old XML format
 
-def slice_to_img(args, slice, x, y, ofp):
+def slice_to_img(args, slice, x, y, bitdepth, image_bitdepth, target_factor, input_factor, ofp):
     """Convert byte data of a slice into an image
 
     Args:
@@ -145,15 +177,11 @@ def slice_to_img(args, slice, x, y, ofp):
 
     """
     slice = slice.reshape([y,x])
-    if args.format == 'tif':
-        datatype = 'uint16'
-    elif args.format == 'png':
-        slice = np.floor(slice * float((2 ** 8) - 1) / float((2 ** 16) - 1))
-        datatype = 'uint8'
-    else:
-        datatype = 'uint8'
 
-    Image.fromarray(slice.astype(datatype)).save(ofp)
+    if bitdepth != image_bitdepth:
+        slice = np.floor(slice * float((2 ** target_factor) - 1) / float((2 ** input_factor) - 1))
+
+    Image.fromarray(slice.astype(image_bitdepth)).save(ofp)
 
 def extract_slices(args, fp):
     """Extract each slice of a volume, one by one and save it as an image
@@ -187,6 +215,8 @@ def extract_slices(args, fp):
         logging.debug(f"Volume dimensions:  <{x}, {y}, {z}> for '{fp}'")
         logging.debug(f"Slice thicknesses:  <{xth}, {yth}, {zth}> for '{fp}'")
 
+        bitdepth = determine_bit_depth(fp, (x,y,z), (xth, yth, zth))
+
         # Pad the index for the slice in its filename based on the
         # number of digits for the total count of slices
         digits = len(str(z))
@@ -194,12 +224,37 @@ def extract_slices(args, fp):
 
         # Set slice dimensions
         img_size = x * y
-        offset = img_size * np.dtype('uint16').itemsize
+        offset = img_size * np.dtype(bitdepth).itemsize
+
+        # Determine scaling parameters per volume for output images
+        # Equate the image format to numpy dtype
+        if args.format == 'tif':
+            image_bitdepth = 'uint16'
+            target_factor = 16
+        elif args.format == 'png':
+            image_bitdepth = 'uint8'
+            target_factor = 8
+        else:
+            image_bitdepth = 'uint8'
+            target_factor = 8
+
+        # When .RAW bit depth is *not* the same as the output image bit depth,
+        # the data needs to be remapped from original bit depth to desired
+        # image bit dpeth
+        if bitdepth == 'uint8':
+            input_factor = 8
+        elif bitdepth == 'uint16':
+            input_factor = 16
+        elif bitdepth == 'float32':
+            input_factor = 32
+        else:
+            input_factor = 16 # assume 16-bit volume
 
         # Extract data from volume, slice-by-slice
         slices = []
 
-        pbar = tqdm(total = z, desc=f"Extracting slices from {os.path.basename(fp)}")
+        description = f"Extracting slices from {os.path.basename(fp)} ({bitdepth})"
+        pbar = tqdm(total = z, desc=description)
         with open(fp, 'rb') as f_data:
             # Dedicate N CPUs for processing
             with Pool(args.threads) as p:
@@ -207,14 +262,14 @@ def extract_slices(args, fp):
                 for i in range(0, z):
                     # Read slice data, and set job data for each process
                     f_data.seek(i*offset)
-                    chunk = np.fromfile(f_data, dtype='uint16', count = img_size, sep="")
+                    chunk = np.fromfile(f_data, dtype=bitdepth, count = img_size, sep="")
                     ofp = os.path.join(imgs_dir, f"{os.path.splitext(os.path.basename(fp))[0]}_{num_format.format(i)}.{args.format}")
                     # Check if the image already exists
                     if os.path.exists(ofp) and not args.force:
                         pbar.update()
                         continue
                     # Process each slice of the volume across N processes
-                    p.apply_async(slice_to_img, args=(args, chunk, x, y, ofp), callback=update)
+                    p.apply_async(slice_to_img, args=(args, chunk, x, y, bitdepth, image_bitdepth, target_factor, input_factor, ofp), callback=update)
                 p.close()
                 p.join()
         pbar.close()
