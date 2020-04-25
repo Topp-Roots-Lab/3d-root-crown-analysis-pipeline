@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3.8
 # -*- coding: utf-8 -*-
 '''
 Created on Jul 27, 2018
@@ -23,10 +23,10 @@ def options():
     parser = argparse.ArgumentParser(description='Convert .raw 3d volume file to typical image format slices',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
     parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
-    parser.add_argument('-i', "--input_folder", action="store_true", help="Deprecated. Data folder.") # left in for backwards compatibility
-    parser.add_argument('-t', "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
-    parser.add_argument('--force', action="store_true", help="Force file creation. Overwrite any existing files.")
-    parser.add_argument('-f', "--format", default='png', help="Set image filetype. Availble options: ['png', 'tif']")
+    parser.add_argument("-i", "--input_folder", action="store_true", help="Deprecated. Data folder.") # left in for backwards compatibility
+    parser.add_argument("-t", "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
+    parser.add_argument("-f", '--force', action="store_true", help="Force file creation. Overwrite any existing files.")
+    parser.add_argument("--format", default='png', help="Set image filetype. Availble options: ['png', 'tif']")
     parser.add_argument("path", metavar='PATH', type=str, nargs='+', help='Input directory to process')
     args = parser.parse_args()
 
@@ -75,11 +75,63 @@ def get_volume_dimensions(args, fp):
 
     """
     with open(fp, 'r') as ifp:
-        line = ifp.readlines()[1]
-        dims = [int(s) for s in line.split() if s.isdigit()]
-        if not dims or len(dims) != 3:
-            raise Exception(f"Unable to extract dimensions from DAT file: '{fp}'. Found dimensions: '{dims}'.")
-        return dims
+        for line in ifp.readlines():
+            logging.debug(line)
+            pattern_old = r'\s+<Resolution X="(?P<x>\d+)"\s+Y="(?P<y>\d+)"\s+Z="(?P<z>\d+)"'
+            pattern = r'Resolution\:\s+(?P<x>\d+)\s+(?P<y>\d+)\s+(?P<z>\d+)'
+            
+            # See if the DAT file is the newer version
+            match = re.match(pattern, line, flags=re.IGNORECASE)
+            logging.debug(f"Match to current version: {match}")
+            # Otherwise, check the old version (XML)
+            if match is None:
+                match = re.match(pattern_old, line, flags=re.IGNORECASE)
+                if match is not None:
+                    logging.debug(f"XML format detected for '{fp}'")
+                    break
+            else:
+                logging.debug(f"Text/plain format detected for '{fp}'")
+                break
+    
+        if match is not None:
+            dims = [ match.group('x'), match.group('y'), match.group('z') ]
+            dims = [ int(d) for d in dims ]
+            
+            # Found the wrong number of dimensions
+            if not dims or len(dims) != 3:
+                raise Exception(f"Unable to extract dimensions from DAT file: '{fp}'. Found dimensions: '{dims}'.")
+            return dims
+        else:
+            raise Exception(f"Unable to extract dimensions from DAT file: '{fp}'.")
+
+def get_volume_slice_thickness(args, fp):
+    """Get the x, y, z dimensions of a volume.
+
+    Args:
+        args (Namespace): arguments object
+        fp (str): .DAT filepath
+
+    Returns:
+        (int, int, int): x, y, z real-world thickness in mm
+
+    """
+    with open(fp, 'r') as ifp:
+        for line in ifp.readlines():
+            logging.debug(line)
+            pattern = r'\w+\:\s+(?P<xth>\d+\.\d+)\s+(?P<yth>\d+\.\d+)\s+(?P<zth>\d+\.\d+)'
+            match = re.match(pattern, line, flags=re.IGNORECASE)
+            if match is None:
+                continue
+            else:
+                logging.debug(f"Match: {match}")
+                df = match.groupdict()
+                logging.debug(df)
+                dims = [ match.group('xth'), match.group('yth'), match.group('zth') ]
+                dims = [ float(s) for s in dims ]
+                if not dims or len(dims) != 3:
+                    raise Exception(f"Unable to extract slice thickness from DAT file: '{fp}'. Found slice thickness: '{dims}'.")
+                return dims
+        return (None, None, None) # workaround for the old XML format
 
 def slice_to_img(args, slice, x, y, ofp):
     """Convert byte data of a slice into an image
@@ -131,7 +183,9 @@ def extract_slices(args, fp):
     else:
         # Get dimensions of the volume
         x, y, z = get_volume_dimensions(args, dat_fp)
-        logging.debug(f"Volume dimensions:  <{x}, {y}, {z}>")
+        xth, yth, zth = get_volume_slice_thickness(args, f"{os.path.splitext(fp)[0]}.dat")
+        logging.debug(f"Volume dimensions:  <{x}, {y}, {z}> for '{fp}'")
+        logging.debug(f"Slice thicknesses:  <{xth}, {yth}, {zth}> for '{fp}'")
 
         # Pad the index for the slice in its filename based on the
         # number of digits for the total count of slices
