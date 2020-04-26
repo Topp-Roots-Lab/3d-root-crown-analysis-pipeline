@@ -178,7 +178,7 @@ def slice_to_img(args, slice, x, y, bitdepth, image_bitdepth, target_factor, inp
     slice = slice.reshape([y,x])
 
     if bitdepth != image_bitdepth:
-        slice = np.floor(slice * float((2 ** target_factor) - 1) / float((2 ** input_factor) - 1))
+        slice = np.floor(slice / float((2 ** input_factor) - 1) * float((2 ** target_factor) - 1))
 
     Image.fromarray(slice.astype(image_bitdepth)).save(ofp)
 
@@ -224,6 +224,7 @@ def extract_slices(args, fp):
 
         # Set slice dimensions
         img_size = x * y
+        logging.debug(f"Reading input as '{bitdepth}' (itemsize: {np.dtype(bitdepth).itemsize})")
         offset = img_size * np.dtype(bitdepth).itemsize
 
         # Determine scaling parameters per volume for output images
@@ -260,7 +261,6 @@ def extract_slices(args, fp):
                     if os.path.exists(ofp) and not args.force:
                         pbar.update()
                         continue
-                    # Process each slice of the volume across N processes
                     p.apply_async(slice_to_img, args=(args, chunk, x, y, bitdepth, image_bitdepth, target_factor, input_factor, ofp), callback=update)
                 p.close()
                 p.join()
@@ -297,9 +297,12 @@ if __name__ == "__main__":
         logging.error(err)
     else:
         # For each provided directory...
-        for fp in tqdm(args.files, desc=f"Overall progress"):
+        pbar = tqdm(total = len(args.files), desc=f"Overall progress")
+        for fp in args.files:
             logging.debug(f"Processing '{fp}'")
             # Extract slices for all volumes in provided folder
             extract_slices(args, fp)
+            pbar.update()
+        pbar.close()
 
     logging.debug(f'Total execution time: {time() - start_time} seconds')
