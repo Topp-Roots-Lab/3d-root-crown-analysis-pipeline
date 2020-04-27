@@ -164,7 +164,7 @@ def get_volume_slice_thickness(args, fp):
                 return dims
         return (None, None, None) # workaround for the old XML format
 
-def slice_to_img(args, slice, x, y, bitdepth, image_bitdepth, scale_transformation, ofp):
+def slice_to_img(args, slice, x, y, bitdepth, image_bitdepth, old_min, old_max, new_min, new_max, ofp):
     """Convert byte data of a slice into an image
 
     Args:
@@ -177,10 +177,9 @@ def slice_to_img(args, slice, x, y, bitdepth, image_bitdepth, scale_transformati
     """
     slice = slice.reshape([y,x])
 
-
     if bitdepth != image_bitdepth:
-        # slice = np.floor(slice / float((2 ** input_factor) - 1) * float((2 ** target_factor) - 1))
-        slice = np.floor(slice.apply(scale_transformation))
+        slice = ((slice - old_min) / (old_max - old_min)) * (new_max - new_min) + new_min
+        slice = np.floor(slice)
 
     Image.fromarray(slice.astype(image_bitdepth)).save(ofp)
 
@@ -241,29 +240,22 @@ def extract_slices(args, fp):
         # Construct transformation function
         # If input bitdepth is an integer, get the max and min with iinfo
         if np.issubdtype(np.dtype(bitdepth), np.integer):
-            old_min = np.dtype(bitdepth).iinfo.min
-            old_max = np.dtype(bitdepth).iinfo.max
+            old_min = np.iinfo(np.dtype(bitdepth)).min
+            old_max = np.iinfo(np.dtype(bitdepth)).max
         # Otherwise, assume float32 input
         else:
-            old_min = np.dtype(bitdepth).finfo.min
-            old_max = np.dtype(bitdepth).finfo.max
-        # If input image bit depth is an integer, get the max and min with iinfo
+            old_min = np.finfo(np.dtype(bitdepth)).min
+            old_max = np.finfo(np.dtype(bitdepth)).max
+        # If output image bit depth is an integer, get the max and min with iinfo
         if np.issubdtype(np.dtype(image_bitdepth), np.integer):
-            new_min = np.dtype(image_bitdepth).iinfo.min
-            new_max = np.dtype(image_bitdepth).iinfo.max
-        # Otherwise, assume float32 input
+            new_min = np.iinfo(np.dtype(image_bitdepth)).min
+            new_max = np.iinfo(np.dtype(image_bitdepth)).max
+        # Otherwise, assume float32 output
         else:
-            new_min = np.dtype(image_bitdepth).finfo.min
-            new_max = np.dtype(image_bitdepth).finfo.max
+            new_min = np.finfo(np.dtype(image_bitdepth)).min
+            new_max = np.finfo(np.dtype(image_bitdepth)).max
 
-        # Y = (X-A)/(B-A) * (D-C) + C
-        # v = (v_0 - old_min) / (old_max - old_min) * (new_max - new_min) + (new_min)
-        # Example of uint16 to uint8
-        # Y = (X - 0)/(65535 - 0) * (255 - 0) + 0
-        # Example of float32 to uint8
-        # Y = (X - -3.4028235e+38) / (3.4028235e+38 - -3.4028235e+38) * (255 - 0) + 0
-
-        scale_transformation = lambda x: (x - old_min) / (old_max - old_min) * (new_max - new_min) + new_min
+        logging.debug(f"{bitdepth} ({old_min}, {old_max}) -> {image_bitdepth} ({new_min}, {new_max})")
 
         # Extract data from volume, slice-by-slice
         slices = []
@@ -283,7 +275,7 @@ def extract_slices(args, fp):
                     if os.path.exists(ofp) and not args.force:
                         pbar.update()
                         continue
-                    p.apply_async(slice_to_img, args=(args, chunk, x, y, bitdepth, image_bitdepth, scale_transformation, ofp), callback=update)
+                    p.apply_async(slice_to_img, args=(args, chunk, x, y, bitdepth, image_bitdepth, old_min, old_max, new_min, new_max, ofp), callback=update)
                 p.close()
                 p.join()
         pbar.close()
