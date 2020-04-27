@@ -164,7 +164,7 @@ def get_volume_slice_thickness(args, fp):
                 return dims
         return (None, None, None) # workaround for the old XML format
 
-def slice_to_img(args, slice, x, y, bitdepth, image_bitdepth, target_factor, input_factor, ofp):
+def slice_to_img(args, slice, x, y, bitdepth, image_bitdepth, scale_transformation, ofp):
     """Convert byte data of a slice into an image
 
     Args:
@@ -177,8 +177,10 @@ def slice_to_img(args, slice, x, y, bitdepth, image_bitdepth, target_factor, inp
     """
     slice = slice.reshape([y,x])
 
+
     if bitdepth != image_bitdepth:
-        slice = np.floor(slice / float((2 ** input_factor) - 1) * float((2 ** target_factor) - 1))
+        # slice = np.floor(slice / float((2 ** input_factor) - 1) * float((2 ** target_factor) - 1))
+        slice = np.floor(slice.apply(scale_transformation))
 
     Image.fromarray(slice.astype(image_bitdepth)).save(ofp)
 
@@ -236,12 +238,32 @@ def extract_slices(args, fp):
         else:
             image_bitdepth = 'uint8'
 
-        target_factor = 8 * np.dtype(image_bitdepth).itemsize
+        # Construct transformation function
+        # If input bitdepth is an integer, get the max and min with iinfo
+        if np.issubdtype(np.dtype(bitdepth), np.integer):
+            old_min = np.dtype(bitdepth).iinfo.min
+            old_max = np.dtype(bitdepth).iinfo.max
+        # Otherwise, assume float32 input
+        else:
+            old_min = np.dtype(bitdepth).finfo.min
+            old_max = np.dtype(bitdepth).finfo.max
+        # If input image bit depth is an integer, get the max and min with iinfo
+        if np.issubdtype(np.dtype(image_bitdepth), np.integer):
+            new_min = np.dtype(image_bitdepth).iinfo.min
+            new_max = np.dtype(image_bitdepth).iinfo.max
+        # Otherwise, assume float32 input
+        else:
+            new_min = np.dtype(image_bitdepth).finfo.min
+            new_max = np.dtype(image_bitdepth).finfo.max
 
-        # When .RAW bit depth is *not* the same as the output image bit depth,
-        # the data needs to be remapped from original bit depth to desired
-        # image bit dpeth
-        input_factor = 8 * np.dtype(bitdepth).itemsize
+        # Y = (X-A)/(B-A) * (D-C) + C
+        # v = (v_0 - old_min) / (old_max - old_min) * (new_max - new_min) + (new_min)
+        # Example of uint16 to uint8
+        # Y = (X - 0)/(65535 - 0) * (255 - 0) + 0
+        # Example of float32 to uint8
+        # Y = (X - -3.4028235e+38) / (3.4028235e+38 - -3.4028235e+38) * (255 - 0) + 0
+
+        scale_transformation = lambda x: (x - old_min) / (old_max - old_min) * (new_max - new_min) + new_min
 
         # Extract data from volume, slice-by-slice
         slices = []
@@ -261,7 +283,7 @@ def extract_slices(args, fp):
                     if os.path.exists(ofp) and not args.force:
                         pbar.update()
                         continue
-                    p.apply_async(slice_to_img, args=(args, chunk, x, y, bitdepth, image_bitdepth, target_factor, input_factor, ofp), callback=update)
+                    p.apply_async(slice_to_img, args=(args, chunk, x, y, bitdepth, image_bitdepth, scale_transformation, ofp), callback=update)
                 p.close()
                 p.join()
         pbar.close()
