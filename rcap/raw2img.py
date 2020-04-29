@@ -294,6 +294,9 @@ if __name__ == "__main__":
                 for filename in files:
                     args.files.append(os.path.join(root, filename))
 
+        # Append any loose, explicitly defined paths to .RAW files
+        args.extend([ f for f in args.path if f.endswith('.raw') ])
+
         # Get all RAW files
         args.files = [ f for f in args.files if f.endswith('.raw') ]
         logging.debug(f"All files: {args.files}")
