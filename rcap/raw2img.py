@@ -11,7 +11,6 @@ import logging
 import os
 import re
 from datetime import datetime as dt
-from functools import reduce
 from multiprocessing import Pool, cpu_count
 from time import time
 
@@ -20,8 +19,8 @@ from PIL import Image
 from tqdm import tqdm
 
 from __init__ import __version__
-
-prod = lambda x,y: x * y
+from raw_utils.raw_utils.core.convert.convert import find_float_range, scale
+from raw_utils.raw_utils.core.metadata import determine_bit_depth, read_dat
 
 def options():
     parser = argparse.ArgumentParser(description='Convert .raw 3d volume file to typical image format slices',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -66,34 +65,6 @@ def options():
     logging.debug(f'Running {__file__} {__version__}')
 
     return args
-
-def determine_bit_depth(fp, dims, resolutions):
-    """Determine the bit depth of a .RAW based on its dimensions and slick thickness (i.e., resolution)
-
-    Args:
-        fp (str): file path to .RAW
-        dims (x, y, z): dimensions of .RAW extracted
-        resolutions (xth, yth, zth): thickness of each slice for each dimension
-
-    Returns:
-        str: numpy dtype encoding of bit depth
-    """
-    file_size = os.stat(fp).st_size
-    minimum_size = reduce(prod, dims) # get product of dimensions
-    logging.debug(f"Minimum calculated size of '{fp}' is {minimum_size} bytes")
-    if file_size == minimum_size:
-        return 'uint8'
-    elif file_size == minimum_size * 2:
-        return 'uint16'
-    elif file_size == minimum_size * 4:
-        return 'float32'
-    else:
-        if file_size < minimum_size:
-            logging.warning(f"Detected possible data corruption. File is smaller than expected '{fp}'. Expected at <{file_size * 2}> bytes but found <{file_size}> bytes. Defaulting to unsigned 16-bit.")
-            return 'uint16'
-        else:
-            logging.warning(f"Unable to determine bit-depth of volume '{fp}'. Expected at <{file_size * 2}> bytes but found <{file_size}> bytes. Defaulting to unsigned 16-bit.")
-            return 'uint16'
 
 def get_volume_dimensions(args, fp):
     """Get the x, y, z dimensions of a volume.
@@ -215,7 +186,7 @@ def extract_slices(args, fp):
         logging.debug(f"Volume dimensions:  <{x}, {y}, {z}> for '{fp}'")
         logging.debug(f"Slice thicknesses:  <{xth}, {yth}, {zth}> for '{fp}'")
 
-        bitdepth = determine_bit_depth(fp, (x,y,z), (xth, yth, zth))
+        bitdepth = determine_bit_depth(fp, (x,y,z))
         logging.debug(f"Detected bit depth: '{bitdepth}' for '{fp}'")
 
         # Pad the index for the slice in its filename based on the
@@ -244,8 +215,7 @@ def extract_slices(args, fp):
             old_max = np.iinfo(np.dtype(bitdepth)).max
         # Otherwise, assume float32 input
         else:
-            old_min = np.finfo(np.dtype(bitdepth)).min
-            old_max = np.finfo(np.dtype(bitdepth)).max
+            old_min, old_max = find_float_range(fp, dtype=bitdepth, buffer_size=offset)
         # If output image bit depth is an integer, get the max and min with iinfo
         if np.issubdtype(np.dtype(image_bitdepth), np.integer):
             new_min = np.iinfo(np.dtype(image_bitdepth)).min
@@ -295,7 +265,7 @@ if __name__ == "__main__":
                     args.files.append(os.path.join(root, filename))
 
         # Append any loose, explicitly defined paths to .RAW files
-        args.extend([ f for f in args.path if f.endswith('.raw') ])
+        args.files.extend([ f for f in args.path if f.endswith('.raw') ])
 
         # Get all RAW files
         args.files = [ f for f in args.files if f.endswith('.raw') ]
