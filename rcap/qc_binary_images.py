@@ -21,6 +21,7 @@ def parse_options():
   parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
   parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
   parser.add_argument("-c", "--cutoff", type=float, default=0.8, help="The minimum percentage of white pixels for a given slice for it to be flagged as invalid.")
+  parser.add_argument("-l", "--list", action="store_true", help="Output TXT files that lists bad binary images produced by segmentation")
   parser.add_argument("path", metavar='PATH', type=str, nargs='+', help='Input directory to process. Must contain folder with thresholded images.')
   args = parser.parse_args()
 
@@ -70,8 +71,8 @@ def find_white_slices(fp, cutoff):
       flagged_indexes.append(i)
   flagged_images = sorted(flagged_images)
   if len(flagged_indexes) > 0:
-    return min(flagged_indexes), max(flagged_indexes)
-  return None, None
+    return min(flagged_indexes), max(flagged_indexes), flagged_images
+  return None, None, None
 
 if __name__ == "__main__":
   args = parse_options()
@@ -102,9 +103,12 @@ if __name__ == "__main__":
       for fp in tqdm(binary_image_folders, desc=f"Overall progress"):
         logging.debug(f"Processing '{fp}'")
         # Extract slices for all volumes in provided folder
-        start, end = find_white_slices(fp, args.cutoff)
-        if start is not None and end is not None:
+        start, end, flagged_slices = find_white_slices(fp, args.cutoff)
+        if start is not None and end is not None and flagged_slices is not None:
           failed_volumes.append((fp, start, end))
+          flagged_slice_op = f"{os.path.basename(fp)}.flagged_slices.txt"
+          with open(flagged_slice_op, 'w') as ofp:
+            ofp.write('\n'.join(flagged_slices))
         else:
           passed_volumes.append(fp)
 
