@@ -149,7 +149,7 @@ def slice_to_img(args, slice, x, y, bitdepth, image_bitdepth, old_min, old_max, 
     slice = slice.reshape([y,x])
 
     if bitdepth != image_bitdepth:
-        slice = ((slice - old_min) / (old_max - old_min)) * (new_max - new_min) + new_min
+        slice = scale(slice, old_min, old_max, new_min, new_max)
         slice = np.floor(slice)
 
     Image.fromarray(slice.astype(image_bitdepth)).save(ofp)
