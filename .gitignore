@@ -110,3 +110,4 @@ venv.bak/
 # Extra
 data/
 *.csv
+temp.temp
