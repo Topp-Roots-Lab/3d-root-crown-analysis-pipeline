@@ -1,0 +1,3 @@
+[submodule "rcap/raw_utils"]
+	path = rcap/raw_utils
+	url = git@github.com:Topp-Roots-Lab/raw-utils.git

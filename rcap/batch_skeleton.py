@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3.8
 # -*- coding: utf-8 -*-
 import argparse
 import logging
@@ -58,8 +58,8 @@ def create_features_files(fp):
 
     return output_name
 
-def process(ifp, ofp, scale):
-    p = subprocess.run(['Skeleton', ifp, ofp, str(scale)], capture_output=True, text=True, check=True)
+def process(ifp, ofp, scale, cmd):
+    p = subprocess.run([cmd, ifp, ofp, str(scale)], capture_output=True, text=True, check=True)
     logging.debug(p.stdout)
     if p.returncode > 0:
         logging.error(f"Error encountered. 'Skeleton' returned {p.returncode}")
@@ -69,7 +69,7 @@ if __name__ == "__main__":
 
     # Clean up input folders
     args.path = [ os.path.realpath(fp) for fp in args.path ]
-    # args.path = list(set(args.path)) # remove duplicates
+    args.path = list(set(args.path)) # remove duplicates
 
     # Count the number of sub-folders (i.e., volumes as PNG slices) per input folder
     files = []
@@ -100,10 +100,11 @@ if __name__ == "__main__":
     # Dedicate N CPUs for processing
     with Pool(args.threads) as p:
         # For each slice in the volume...
+        binary_filepath = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'bin', 'Skeleton')
         for fp in args.path:
             # Read object files, and then spawn a child process per volume
             ofp = os.path.join(os.path.dirname(fp), "features.tsv")
-            p.apply_async(process, args=(fp, ofp, args.scale), callback=update)
+            p.apply_async(process, args=(fp, ofp, args.scale, binary_filepath), callback=update)
         p.close()
         p.join()
     pbar.close()

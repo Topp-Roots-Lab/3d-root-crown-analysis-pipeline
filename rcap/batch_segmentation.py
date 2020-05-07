@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3.8
 # -*- coding: utf-8 -*-
 import argparse
 import logging
@@ -114,7 +114,8 @@ if __name__ == "__main__":
         if not os.path.exists(ofp):
             os.makedirs(ofp)
 
-        cmd = ['rootCrownSegmentation', str(args.soil), f'"{fp}/"', str(args.sampling), f'"{ofp}/"', f'"{out_fp}"', f'"{obj_fp}"']
+        binary_filepath = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'bin', 'rootCrownSegmentation')
+        cmd = [binary_filepath, str(args.soil), f'"{fp}/"', str(args.sampling), f'"{ofp}/"', f'"{out_fp}"', f'"{obj_fp}"']
         if args.soil == 1:
             cmd += [soil_out_fp, soil_obj_fp]
         cmd_list.append(' '.join(cmd))

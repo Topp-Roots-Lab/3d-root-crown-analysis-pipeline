@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3.8
 # -*- coding: utf-8 -*-
 '''
 Created on Jul 27, 2018
@@ -9,24 +9,27 @@ Created on Jul 27, 2018
 import argparse
 import logging
 import os
+import re
 from datetime import datetime as dt
 from multiprocessing import Pool, cpu_count
+from time import time
 
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
 from __init__ import __version__
-
+from raw_utils.raw_utils.core.convert.convert import find_float_range, scale
+from raw_utils.raw_utils.core.metadata import determine_bit_depth, read_dat
 
 def options():
     parser = argparse.ArgumentParser(description='Convert .raw 3d volume file to typical image format slices',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
     parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
-    parser.add_argument('-i', "--input_folder", action="store_true", help="Deprecated. Data folder.") # left in for backwards compatibility
-    parser.add_argument('-t', "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
-    parser.add_argument('--force', action="store_true", help="Force file creation. Overwrite any existing files.")
-    parser.add_argument('-f', "--format", default='png', help="Set image filetype. Availble options: ['png', 'tif']")
+    parser.add_argument("-i", "--input_folder", action="store_true", help="Deprecated. Data folder.") # left in for backwards compatibility
+    parser.add_argument("-t", "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
+    parser.add_argument("-f", '--force', action="store_true", help="Force file creation. Overwrite any existing files.")
+    parser.add_argument("--format", default='png', help="Set image filetype. Availble options: ['png', 'tif']")
     parser.add_argument("path", metavar='PATH', type=str, nargs='+', help='Input directory to process')
     args = parser.parse_args()
 
@@ -75,13 +78,64 @@ def get_volume_dimensions(args, fp):
 
     """
     with open(fp, 'r') as ifp:
-        line = ifp.readlines()[1]
-        dims = [int(s) for s in line.split() if s.isdigit()]
-        if not dims or len(dims) != 3:
-            raise Exception(f"Unable to extract dimensions from DAT file: '{fp}'. Found dimensions: '{dims}'.")
-        return dims
+        for line in ifp.readlines():
+            # logging.debug(line.strip())
+            pattern_old = r'\s+<Resolution X="(?P<x>\d+)"\s+Y="(?P<y>\d+)"\s+Z="(?P<z>\d+)"'
+            pattern = r'Resolution\:\s+(?P<x>\d+)\s+(?P<y>\d+)\s+(?P<z>\d+)'
 
-def slice_to_img(args, slice, x, y, ofp):
+            # See if the DAT file is the newer version
+            match = re.match(pattern, line, flags=re.IGNORECASE)
+            # Otherwise, check the old version (XML)
+            if match is None:
+                match = re.match(pattern_old, line, flags=re.IGNORECASE)
+                if match is not None:
+                    logging.debug(f"XML format detected for '{fp}'")
+                    break
+            else:
+                logging.debug(f"Text/plain format detected for '{fp}'")
+                break
+
+        if match is not None:
+            logging.debug(f"Match: {match}")
+            dims = [ match.group('x'), match.group('y'), match.group('z') ]
+            dims = [ int(d) for d in dims ]
+
+            # Found the wrong number of dimensions
+            if not dims or len(dims) != 3:
+                raise Exception(f"Unable to extract dimensions from DAT file: '{fp}'. Found dimensions: '{dims}'.")
+            return dims
+        else:
+            raise Exception(f"Unable to extract dimensions from DAT file: '{fp}'.")
+
+def get_volume_slice_thickness(args, fp):
+    """Get the x, y, z dimensions of a volume.
+
+    Args:
+        args (Namespace): arguments object
+        fp (str): .DAT filepath
+
+    Returns:
+        (int, int, int): x, y, z real-world thickness in mm
+
+    """
+    with open(fp, 'r') as ifp:
+        for line in ifp.readlines():
+            # logging.debug(line.strip())
+            pattern = r'\w+\:\s+(?P<xth>\d+\.\d+)\s+(?P<yth>\d+\.\d+)\s+(?P<zth>\d+\.\d+)'
+            match = re.match(pattern, line, flags=re.IGNORECASE)
+            if match is None:
+                continue
+            else:
+                logging.debug(f"Match: {match}")
+                df = match.groupdict()
+                dims = [ match.group('xth'), match.group('yth'), match.group('zth') ]
+                dims = [ float(s) for s in dims ]
+                if not dims or len(dims) != 3:
+                    raise Exception(f"Unable to extract slice thickness from DAT file: '{fp}'. Found slice thickness: '{dims}'.")
+                return dims
+        return (None, None, None) # workaround for the old XML format
+
+def slice_to_img(args, slice, x, y, bitdepth, image_bitdepth, old_min, old_max, new_min, new_max, ofp):
     """Convert byte data of a slice into an image
 
     Args:
@@ -93,15 +147,12 @@ def slice_to_img(args, slice, x, y, ofp):
 
     """
     slice = slice.reshape([y,x])
-    if args.format == 'tif':
-        datatype = 'uint16'
-    elif args.format == 'png':
-        slice = np.floor(slice * float((2 ** 8) - 1) / float((2 ** 16) - 1))
-        datatype = 'uint8'
-    else:
-        datatype = 'uint8'
 
-    Image.fromarray(slice.astype(datatype)).save(ofp)
+    if bitdepth != image_bitdepth:
+        slice = scale(slice, old_min, old_max, new_min, new_max)
+        slice = np.floor(slice)
+
+    Image.fromarray(slice.astype(image_bitdepth)).save(ofp)
 
 def extract_slices(args, fp):
     """Extract each slice of a volume, one by one and save it as an image
@@ -131,7 +182,12 @@ def extract_slices(args, fp):
     else:
         # Get dimensions of the volume
         x, y, z = get_volume_dimensions(args, dat_fp)
-        logging.debug(f"Volume dimensions:  <{x}, {y}, {z}>")
+        xth, yth, zth = get_volume_slice_thickness(args, f"{os.path.splitext(fp)[0]}.dat")
+        logging.debug(f"Volume dimensions:  <{x}, {y}, {z}> for '{fp}'")
+        logging.debug(f"Slice thicknesses:  <{xth}, {yth}, {zth}> for '{fp}'")
+
+        bitdepth = determine_bit_depth(fp, (x,y,z))
+        logging.debug(f"Detected bit depth: '{bitdepth}' for '{fp}'")
 
         # Pad the index for the slice in its filename based on the
         # number of digits for the total count of slices
@@ -140,12 +196,42 @@ def extract_slices(args, fp):
 
         # Set slice dimensions
         img_size = x * y
-        offset = img_size * np.dtype('uint16').itemsize
+        logging.debug(f"Reading input as '{bitdepth}' (itemsize: {np.dtype(bitdepth).itemsize})")
+        offset = img_size * np.dtype(bitdepth).itemsize
+
+        # Determine scaling parameters per volume for output images
+        # Equate the image format to numpy dtype
+        if args.format == 'tif':
+            image_bitdepth = 'uint16'
+        elif args.format == 'png':
+            image_bitdepth = 'uint8'
+        else:
+            image_bitdepth = 'uint8'
+
+        # Construct transformation function
+        # If input bitdepth is an integer, get the max and min with iinfo
+        if np.issubdtype(np.dtype(bitdepth), np.integer):
+            old_min = np.iinfo(np.dtype(bitdepth)).min
+            old_max = np.iinfo(np.dtype(bitdepth)).max
+        # Otherwise, assume float32 input
+        else:
+            old_min, old_max = find_float_range(fp, dtype=bitdepth, buffer_size=offset)
+        # If output image bit depth is an integer, get the max and min with iinfo
+        if np.issubdtype(np.dtype(image_bitdepth), np.integer):
+            new_min = np.iinfo(np.dtype(image_bitdepth)).min
+            new_max = np.iinfo(np.dtype(image_bitdepth)).max
+        # Otherwise, assume float32 output
+        else:
+            new_min = np.finfo(np.dtype(image_bitdepth)).min
+            new_max = np.finfo(np.dtype(image_bitdepth)).max
+
+        logging.debug(f"{bitdepth} ({old_min}, {old_max}) -> {image_bitdepth} ({new_min}, {new_max})")
 
         # Extract data from volume, slice-by-slice
         slices = []
 
-        pbar = tqdm(total = z, desc=f"Extracting slices from {os.path.basename(fp)}")
+        description = f"Extracting slices from {os.path.basename(fp)} ({bitdepth})"
+        pbar = tqdm(total = z, desc=description)
         with open(fp, 'rb') as f_data:
             # Dedicate N CPUs for processing
             with Pool(args.threads) as p:
@@ -153,14 +239,13 @@ def extract_slices(args, fp):
                 for i in range(0, z):
                     # Read slice data, and set job data for each process
                     f_data.seek(i*offset)
-                    chunk = np.fromfile(f_data, dtype='uint16', count = img_size, sep="")
+                    chunk = np.fromfile(f_data, dtype=bitdepth, count = img_size, sep="")
                     ofp = os.path.join(imgs_dir, f"{os.path.splitext(os.path.basename(fp))[0]}_{num_format.format(i)}.{args.format}")
                     # Check if the image already exists
                     if os.path.exists(ofp) and not args.force:
                         pbar.update()
                         continue
-                    # Process each slice of the volume across N processes
-                    p.apply_async(slice_to_img, args=(args, chunk, x, y, ofp), callback=update)
+                    p.apply_async(slice_to_img, args=(args, chunk, x, y, bitdepth, image_bitdepth, old_min, old_max, new_min, new_max, ofp), callback=update)
                 p.close()
                 p.join()
         pbar.close()
@@ -168,6 +253,7 @@ def extract_slices(args, fp):
 
 if __name__ == "__main__":
     args = options()
+    start_time = time()
 
     # Collect all volumes and validate their metadata
     try:
@@ -177,6 +263,9 @@ if __name__ == "__main__":
             for root, dirs, files in os.walk(p):
                 for filename in files:
                     args.files.append(os.path.join(root, filename))
+
+        # Append any loose, explicitly defined paths to .RAW files
+        args.files.extend([ f for f in args.path if f.endswith('.raw') ])
 
         # Get all RAW files
         args.files = [ f for f in args.files if f.endswith('.raw') ]
@@ -195,7 +284,12 @@ if __name__ == "__main__":
         logging.error(err)
     else:
         # For each provided directory...
-        for fp in tqdm(args.files, desc=f"Overall progress"):
+        pbar = tqdm(total = len(args.files), desc=f"Overall progress")
+        for fp in args.files:
             logging.debug(f"Processing '{fp}'")
             # Extract slices for all volumes in provided folder
             extract_slices(args, fp)
+            pbar.update()
+        pbar.close()
+
+    logging.debug(f'Total execution time: {time() - start_time} seconds')
