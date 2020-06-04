@@ -10,21 +10,20 @@
 #include "opencv2/imgcodecs.hpp"
 #include <iostream>
 
-
 using namespace cv;
 using namespace std;
 
-int main( int argc, char** argv )
+int main(int argc, char **argv)
 {
-    
+
 	char name[300];
 
 	int doRemove = atoi(argv[1]);
 	string inputpath = argv[2];
 	int sampling = atoi(argv[3]);
 	string outputpath = string(argv[4]);
-	char* fname2 = argv[5];
-	char* fname3 = argv[6];
+	char *fname2 = argv[5];
+	char *fname3 = argv[6];
 
 	FILE *Outfp = fopen(fname2, "w");
 	int numVert = 0;
@@ -45,7 +44,7 @@ int main( int argc, char** argv )
 	rows = temp.rows;
 	cols = temp.cols;
 
-	size = rows*cols;
+	size = rows * cols;
 	uchar *im = new uchar[size];
 	uchar *im2 = new uchar[size];
 
@@ -59,8 +58,8 @@ int main( int argc, char** argv )
 
 	if (doRemove > 0)
 	{
-		char* fname4 = argv[7];
-		char* fname5 = argv[8];
+		char *fname4 = argv[7];
+		char *fname5 = argv[8];
 		FILE *Outfp2 = fopen(fname4, "w");
 		int numVert2 = 0;
 
@@ -82,7 +81,7 @@ int main( int argc, char** argv )
 			//bw1 -- soil potential
 			thres1 = threshold(img, bw1, 0, 255, THRESH_OTSU);
 			//bwRemove(bw1, 10);
-			//bw2 -- root 
+			//bw2 -- root
 			thres2 = threshold(img, bw2, 0, 255, THRESH_TRIANGLE);
 			count_cur = countNonZero(bw2);
 
@@ -103,24 +102,22 @@ int main( int argc, char** argv )
 
 				bitwise_and(bw2, temp, bw4);
 
-
 				// count_prev -- number of root pixels in previous slice
 				// count_prev2 -- number of soil pixels in prevous slice
 				//bitwise_and(bw);
 				//if ((abs(countNonZero(bw3) - count_prev) < abs(countNonZero(bw2) - count_prev) && flag == true) ||
 				if ((abs(countNonZero(bw3) - count_prev) < abs(countNonZero(bw2) - count_prev) && count_prev2 > 0) ||
-					(thres1 - thres2 >= 5 &&
-					((count_prev2 > 0 && ovlp < 0.7) || (flag == false && n < 0.8*fn.size() && ovlp2 > 0.7))))
+						(thres1 - thres2 >= 5 &&
+						 ((count_prev2 > 0 && ovlp < 0.7) || (flag == false && n < 0.8 * fn.size() && ovlp2 > 0.7))))
 				{
 					memcpy(im2, bw1.data, size);
 					bw3.copyTo(bw2);
 					flag = true;
 				}
-
 			}
 
 			count_cur = countNonZero(bw2);
-			if (n > 0.7*fn.size() && count_cur > 50 * count_prev)
+			if (n > 0.7 * fn.size() && count_cur > 50 * count_prev)
 			{
 				memset(bw2.data, 0, size);
 				count_cur = 0;
@@ -149,15 +146,12 @@ int main( int argc, char** argv )
 						fprintf(Objfp2, "v %d %d %d\n", j, i, id / sampling);
 						fprintf(Outfp2, "%d %d %d\n", j, i, id / sampling);
 					}
-
 				}
-			
+
 			string filename = fn[n].substr(fn[n].find_last_of("\\") + 1);
 			imwrite(outputpath + filename, bw2);
 			bw2.copyTo(temp);
 		}
-
-
 
 		fseek(Outfp2, 0L, SEEK_SET);
 		rewind(Outfp2);
@@ -174,11 +168,11 @@ int main( int argc, char** argv )
 			resize(img, img, Size(), scale, scale, INTER_LINEAR);
 			Mat bw2, bw3, bw4;
 			memset(im2, 0, size);
-			
+
 			thres2 = threshold(img, bw2, 0, 255, THRESH_TRIANGLE);
 
 			count_cur = countNonZero(bw2);
-			if (n > 0.7*fn.size() && count_cur > 50 * count_prev)
+			if (n > 0.7 * fn.size() && count_cur > 50 * count_prev)
 			{
 				memset(bw2.data, 0, size);
 				count_cur = 0;
@@ -199,9 +193,9 @@ int main( int argc, char** argv )
 						fprintf(Outfp, "%d %d %d\n", j, i, id / sampling);
 					}
 				}
-			
+
 			string filename = fn[n].substr(fn[n].find_last_of("/") + 1);
-			imwrite(outputpath + filename, bw2);			
+			imwrite(outputpath + filename, bw2);
 			bw2.copyTo(temp);
 		}
 	}
@@ -211,10 +205,8 @@ int main( int argc, char** argv )
 	fprintf(Outfp, "0.15\n");
 	fprintf(Outfp, "%20d\n", numVert);
 
-
-
 	fclose(Outfp);
 	fclose(Objfp);
-	delete[]im;
+	delete[] im;
 	return 0;
 }
