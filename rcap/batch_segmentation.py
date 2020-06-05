@@ -62,8 +62,11 @@ def options():
 
 # Async function to call rootCrownSegmentation binary
 def run(cmd):
-    logging.debug(f"Run command: '{cmd}'")
-    proc = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
+    logging.debug(f"Run command: '{' '.join(cmd)}'")
+    p = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    logging.debug(p.stdout)
+    if p.returncode > 0:
+        logging.error(f"Error encountered. 'rootCrownSegmentation' returned {p.returncode}")
 
 if __name__ == "__main__":
     args = options()
@@ -115,10 +118,10 @@ if __name__ == "__main__":
             os.makedirs(ofp)
 
         binary_filepath = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'bin', 'rootCrownSegmentation')
-        cmd = [binary_filepath, str(args.soil), f'"{fp}/"', str(args.sampling), f'"{ofp}/"', f'"{out_fp}"', f'"{obj_fp}"']
+        cmd = [binary_filepath, str(args.soil), f'{fp}/', str(args.sampling), f'{ofp}/', f'{out_fp}', f'{obj_fp}']
         if args.soil == 1:
             cmd += [soil_out_fp, soil_obj_fp]
-        cmd_list.append(' '.join(cmd))
+        cmd_list.append(cmd)
 
     def update(*args):
         pbar.update()

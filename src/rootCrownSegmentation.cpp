@@ -13,9 +13,17 @@
 using namespace cv;
 using namespace std;
 
+double medianMat(cv::Mat Input)
+{
+	Input = Input.reshape(0, 1); // spread Input Mat to single row
+	std::vector<double> vecFromMat;
+	Input.copyTo(vecFromMat); // Copy Input Mat to vector vecFromMat
+	std::nth_element(vecFromMat.begin(), vecFromMat.begin() + vecFromMat.size() / 2, vecFromMat.end());
+	return vecFromMat[vecFromMat.size() / 2];
+}
+
 int main(int argc, char **argv)
 {
-
 	char name[300];
 
 	int doRemove = atoi(argv[1]);
@@ -170,6 +178,30 @@ int main(int argc, char **argv)
 			memset(im2, 0, size);
 
 			thres2 = threshold(img, bw2, 0, 255, THRESH_TRIANGLE);
+
+			// NOTE(tparker): Check that the threshold value has not been picked from
+			// the darker side of the histogram, as it's very unlikely that a root
+			// system would be less dense than the air or medium it was scanned in
+			// As a workaround, if the threshold value is picked from the darker side,
+			// then replace any values in the image that are darker than the median
+			// value with the median
+			int median = int(medianMat(img));
+
+			if (thres2 <= median)
+			{
+				for (int r = 0; r < img.rows; r++)
+				{
+					for (int c = 0; c < img.cols; c++)
+					{
+						if (img.at<uint8_t>(r, c) < (uint8_t)median && (uint8_t)img.at<uint8_t>(r, c) != (uint8_t)0)
+						{
+							img.at<uint8_t>(r, c) = (uint8_t)median;
+						}
+					}
+				}
+				// Redo the threshold with the modified image
+				thres2 = threshold(img, bw2, median, 255, THRESH_TRIANGLE);
+			}
 
 			count_cur = countNonZero(bw2);
 			if (n > 0.7 * fn.size() && count_cur > 50 * count_prev)
