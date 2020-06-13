@@ -87,11 +87,268 @@ int medianMat(cv::Mat image)
 /*
  * Convert grayscale images to binary images
  * 
- * 
- * 
+ * @param inputpath Filepath to grayscale images directory
+ * @param sampling Downsampling factor (e.g., 2 equates to 1/2 resolution)
+ * @param outputpath Destination filepath to output directory for binary images
+ * @param fname2 Destination filepath to output OUT file
+ * @param fname3 Destination filepath to output OBJ file
  */
-int segment()
+int segment(string inputpath, int sampling, string outputpath, string fname2, string fname3)
 {
+	string VERSION;
+	VERSION.assign(fetchVersion());
+
+	// Initialize OUT file
+	FILE *Outfp = fopen(fname2.c_str(), "w");
+	int numVert = 0;
+
+	fprintf(Outfp, "# v%s\n", VERSION.c_str());
+	fprintf(Outfp, "%20d\n", numVert);
+
+	// Initialize OBJ file
+	FILE *Objfp = fopen(fname3.c_str(), "w");
+
+	string filePath = string(inputpath) + "*.png";
+	vector<String> fn;
+	glob(filePath, fn);
+	Mat temp = imread(fn[0], CV_LOAD_IMAGE_GRAYSCALE);
+
+	float scale = 1.0 / sampling;
+	resize(temp, temp, Size(), scale, scale, INTER_LINEAR);
+	int rows, cols, size;
+	rows = temp.rows;
+	cols = temp.cols;
+
+	size = rows * cols;
+	uchar *im = new uchar[size];
+	uchar *im2 = new uchar[size];
+
+	memset(temp.data, 0, size);
+	double thres1, thres2;
+	int count_cur, count_prev = 0, count_prev2 = 0;
+	int id;
+	float ovlp, ovlp2, ovlp3;
+	bool flag = false;
+
+	for (int n = 0; n < fn.size(); n += sampling)
+	{
+		id = fn.size() - n;
+		Mat img = imread(fn[n], CV_LOAD_IMAGE_GRAYSCALE);
+		resize(img, img, Size(), scale, scale, INTER_LINEAR);
+		Mat bw2, bw3, bw4;
+		memset(im2, 0, size);
+
+		thres2 = threshold(img, bw2, 0, 255, THRESH_TRIANGLE);
+
+		// NOTE(tparker): Check that the threshold value has not been picked from
+		// the darker side of the histogram, as it's very unlikely that a root
+		// system would be less dense than the air or medium it was scanned in
+		// As a workaround, if the threshold value is picked from the darker side,
+		// then replace any values in the image that are darker than the median
+		// value with the median
+		int median = medianMat(img);
+
+		if (thres2 <= median)
+		{
+			for (int r = 0; r < img.rows; r++)
+			{
+				for (int c = 0; c < img.cols; c++)
+				{
+					if (img.at<uint8_t>(r, c) < (uint8_t)median && (uint8_t)img.at<uint8_t>(r, c) != (uint8_t)0)
+					{
+						img.at<uint8_t>(r, c) = (uint8_t)median;
+					}
+				}
+			}
+			// Redo the threshold with the modified image
+			thres2 = threshold(img, bw2, median, 255, THRESH_TRIANGLE);
+		}
+
+		count_cur = countNonZero(bw2);
+		if (n > 0.7 * fn.size() && count_cur > 50 * count_prev)
+		{
+			memset(bw2.data, 0, size);
+			count_cur = 0;
+			memcpy(im2, bw2.data, size);
+		}
+
+		count_prev = count_cur;
+		memcpy(im, bw2.data, size);
+
+		for (int i = 0; i < rows; i++)
+			for (int j = 0; j < cols; j++)
+			{
+				int index = i * cols + j;
+				if (im[index] > 0)
+				{
+					numVert++;
+					fprintf(Objfp, "v %d %d %d\n", j, i, id / sampling);
+					fprintf(Outfp, "%d %d %d\n", j, i, id / sampling);
+				}
+			}
+
+		string filename = fn[n].substr(fn[n].find_last_of("/") + 1);
+		imwrite(outputpath + filename, bw2);
+		bw2.copyTo(temp);
+	}
+
+	fseek(Outfp, 0L, SEEK_SET);
+	rewind(Outfp);
+	fprintf(Outfp, "# v%s\n", VERSION.c_str());
+	fprintf(Outfp, "%20d\n", numVert);
+
+	fclose(Outfp);
+	fclose(Objfp);
+	delete[] im;
+	return 0;
+}
+
+/*
+ * Convert grayscale images to binary images (w/ soil removal)
+ * 
+ * @param inputpath Filepath to grayscale images directory
+ * @param sampling Downsampling factor (e.g., 2 equates to 1/2 resolution)
+ * @param outputpath Destination filepath to output directory for binary images
+ * @param fname2 Destination filepath to output OUT file (root system)
+ * @param fname3 Destination filepath to output OBJ file (root system)
+ * @param fname4 Destination filepath to output OUT file (soil)
+ * @param fname5 Destination filepath to output OBJ file (soil)
+ */
+int segment(string inputpath, int sampling, string outputpath, string fname2, string fname3, string fname4, string fname5)
+{
+
+	string VERSION;
+	VERSION.assign(fetchVersion());
+
+	// Initialize OUT file
+	FILE *Outfp = fopen(fname2.c_str(), "w");
+	int numVert = 0;
+
+	fprintf(Outfp, "# v%s\n", VERSION.c_str());
+	fprintf(Outfp, "%20d\n", numVert);
+
+	// Initialize OBJ file
+	FILE *Objfp = fopen(fname3.c_str(), "w");
+
+	string filePath = string(inputpath) + "*.png";
+	vector<String> fn;
+	glob(filePath, fn);
+	Mat temp = imread(fn[0], CV_LOAD_IMAGE_GRAYSCALE);
+
+	float scale = 1.0 / sampling;
+	resize(temp, temp, Size(), scale, scale, INTER_LINEAR);
+	int rows, cols, size;
+	rows = temp.rows;
+	cols = temp.cols;
+
+	size = rows * cols;
+	uchar *im = new uchar[size];
+	uchar *im2 = new uchar[size];
+
+	memset(temp.data, 0, size);
+	double thres1, thres2;
+	int count_cur, count_prev = 0, count_prev2 = 0;
+	int id;
+	float ovlp, ovlp2, ovlp3;
+	bool flag = false;
+
+	FILE *Outfp2 = fopen(fname4.c_str(), "w");
+	int numVert2 = 0;
+
+	fprintf(Outfp2, "# v%s\n", VERSION.c_str());
+	fprintf(Outfp2, "%20d\n", numVert);
+
+	FILE *Objfp2 = fopen(fname5.c_str(), "w");
+
+	for (int n = 0; n < fn.size(); n += sampling)
+	//for (int n = fn.size()-1; n >= 0; n -= sampling)
+	{
+		id = fn.size() - n;
+		Mat img = imread(fn[n], CV_LOAD_IMAGE_GRAYSCALE);
+		resize(img, img, Size(), scale, scale, INTER_LINEAR);
+		medianBlur(img, img, 3);
+		Mat bw1, bw2, bw3, bw4;
+		memset(im2, 0, size);
+
+		//bw1 -- soil potential
+		thres1 = threshold(img, bw1, 0, 255, THRESH_OTSU);
+		//bwRemove(bw1, 10);
+		//bw2 -- root
+		thres2 = threshold(img, bw2, 0, 255, THRESH_TRIANGLE);
+		count_cur = countNonZero(bw2);
+
+		if (count_prev > 0 && (thres1 - thres2 > 0))
+		{
+			//temp -- root image from prevouis slice
+			bitwise_and(bw1, temp, bw3);
+			ovlp = countNonZero(bw3);
+			ovlp2 = ovlp;
+			ovlp = ovlp / countNonZero(bw1);
+			ovlp2 = ovlp2 / count_prev;
+			subtract(bw2, bw1, bw3);
+			ovlp2 = countNonZero(bw3);
+			ovlp2 = ovlp2 / count_prev;
+
+			bitwise_and(bw3, temp, bw4);
+			ovlp3 = countNonZero(bw4);
+
+			bitwise_and(bw2, temp, bw4);
+
+			// count_prev -- number of root pixels in previous slice
+			// count_prev2 -- number of soil pixels in prevous slice
+			//bitwise_and(bw);
+			//if ((abs(countNonZero(bw3) - count_prev) < abs(countNonZero(bw2) - count_prev) && flag == true) ||
+			if ((abs(countNonZero(bw3) - count_prev) < abs(countNonZero(bw2) - count_prev) && count_prev2 > 0) ||
+					(thres1 - thres2 >= 5 &&
+					 ((count_prev2 > 0 && ovlp < 0.7) || (flag == false && n < 0.8 * fn.size() && ovlp2 > 0.7))))
+			{
+				memcpy(im2, bw1.data, size);
+				bw3.copyTo(bw2);
+				flag = true;
+			}
+		}
+
+		count_cur = countNonZero(bw2);
+		if (n > 0.7 * fn.size() && count_cur > 50 * count_prev)
+		{
+			memset(bw2.data, 0, size);
+			count_cur = 0;
+			memcpy(im2, bw2.data, size);
+		}
+
+		count_prev = count_cur;
+		memcpy(bw1.data, im2, size);
+		count_prev2 = countNonZero(bw1);
+		memcpy(im, bw2.data, size);
+
+		for (int i = 0; i < rows; i++)
+			for (int j = 0; j < cols; j++)
+			{
+				int index = i * cols + j;
+				if (im[index] > 0)
+				{
+					numVert++;
+					fprintf(Objfp, "v %d %d %d\n", j, i, id / sampling);
+					fprintf(Outfp, "%d %d %d\n", j, i, id / sampling);
+				}
+
+				if (im2[index] > 0)
+				{
+					numVert2++;
+					fprintf(Objfp2, "v %d %d %d\n", j, i, id / sampling);
+					fprintf(Outfp2, "%d %d %d\n", j, i, id / sampling);
+				}
+			}
+
+		string filename = fn[n].substr(fn[n].find_last_of("\\") + 1);
+		imwrite(outputpath + filename, bw2);
+		bw2.copyTo(temp);
+	}
+
+	fseek(Outfp2, 0L, SEEK_SET);
+	rewind(Outfp2);
+	fprintf(Outfp, "# v%s\n", VERSION.c_str());
+	fprintf(Outfp2, "%20d\n", numVert2);
 }
 
 int main(int argc, char **argv)
@@ -100,27 +357,34 @@ int main(int argc, char **argv)
 	{
 		// Configure program options
 		// Required parameters
-		int doRemove;			 // soil removal flag
-		string inputpath;	 // grayscale image directory
-		int sampling;			 // downsampling factor (i.e., a sampling of 2 processes half the total grayscale slices)
-		string outputpath; // binary image directory
-		string fname2;		 // OUT output filepath
-		string fname3;		 // OBJ output filepath
+		int soil_removal_flag;			       // soil removal flag
+		string grayscale_images_directory; // grayscale image directory
+		int sampling;											 // downsampling factor (i.e., a sampling of 2 processes half the total grayscale slices)
+		string binary_images_directory;    // binary image directory
+		string filepath_out;		 					 // OUT output filepath (root system)
+		string filepath_obj;							 // OBJ output filepath (root system)
+		string filepath_out_soil;		 			 // OUT output filepath (soil)
+		string filepath_obj_soil;					 // OBJ output filepath (soil)
 
 		string VERSION;
 		VERSION.assign(fetchVersion());
 
 		po::options_description generic("");
-		generic.add_options()("help,h", "show this help message and exit")("version,V", "show program's version number and exit")("verbose,v", "Increase output verbosity. (default: False)");
+		generic.add_options()
+			("help,h", "show this help message and exit")
+			("version,V", "show program's version number and exit")
+			("verbose,v", "Increase output verbosity. (default: False)");
 
 		po::options_description hidden("Hidden options");
 		hidden.add_options()
-			("soil-removal-flag", po::value<int>(&doRemove), "enable automatic soil removal")
+			("soil-removal-flag", po::value<int>(&soil_removal_flag), "enable automatic soil removal")
 			("grayscale-images-directory", "filepath to directory containing grayscale images")
 			("sampling", po::value<int>(&sampling), "downsampling factor")
 			("binary-images-directory", "filepath to directory to store binary images")
 			("out-filepath", "filepath for produced .OUT file")
-			("obj-filepath", "filepath for produced .OBJ file");
+			("obj-filepath", "filepath for produced .OBJ file")
+			("out-filepath-soil", "filepath for produced .OUT file (soil)")
+			("obj-filepath-soil", "filepath for produced .OBJ file (soil)");
 
 		po::positional_options_description pos_opts_desc;
 		pos_opts_desc
@@ -129,10 +393,14 @@ int main(int argc, char **argv)
 			.add("sampling", 1)
 			.add("binary-images-directory", 1)
 			.add("out-filepath", 1)
-			.add("obj-filepath", 1);
+			.add("obj-filepath", 1)
+			.add("out-filepath-soil", 1)
+			.add("obj-filepath-soil", 1);
 
 		po::options_description cmdline_options;
-		cmdline_options.add(generic).add(hidden);
+		cmdline_options
+			.add(generic)
+			.add(hidden);
 		auto args = po::command_line_parser(argc, argv)
 			.options(cmdline_options)
 			.positional(pos_opts_desc)
@@ -148,7 +416,23 @@ int main(int argc, char **argv)
 			return 0;
 		}
 
-		if (vm.count("help") || !((vm.count("soil-removal-flag") && vm.count("grayscale-images-directory") && vm.count("sampling") && vm.count("binary-images-directory") && vm.count("out-filepath") && vm.count("obj-filepath"))))
+		// Validate options
+		// If help requested
+		if (vm.count("help") ||
+		// If any arguments are missing
+			 !(
+					(vm.count("soil-removal-flag") &&
+					vm.count("grayscale-images-directory") &&
+					vm.count("sampling") &&
+					vm.count("binary-images-directory") &&
+					vm.count("out-filepath") &&
+					vm.count("obj-filepath"))
+				) ||
+		// If soil should be removed, but no output files are provided
+				(
+					soil_removal_flag &&
+					!(vm.count("out-filepath-soil") && vm.count("obj-filepath-soil")))
+				)
 		{
 			cout << "usage: " << argv[0] << " [-h] [-v] [-V] REMOVE_SOIL_FLAG GRAYSCALE_IMAGE_DIRECTORY SAMPLING BINARY_IMAGE_DIRECTORY OUT_FILEPATH OBJ_FILEPATH " << endl;
 			cout << generic << endl;
@@ -156,232 +440,29 @@ int main(int argc, char **argv)
 		}
 
 		// Map program options
-		inputpath = vm["grayscale-images-directory"].as<string>();
-		outputpath = vm["binary-images-directory"].as<string>();
-		fname2 = vm["out-filepath"].as<string>();
-		fname3 = vm["obj-filepath"].as<string>();
+		grayscale_images_directory = vm["grayscale-images-directory"].as<string>();
+		binary_images_directory = vm["binary-images-directory"].as<string>();
+		filepath_out = vm["out-filepath"].as<string>();
+		filepath_obj = vm["obj-filepath"].as<string>();
 
-
-		cout << "Grayscale images:\t" << inputpath << endl;
-		cout << "Soil removal flag\t" << to_string(doRemove) << endl;
+		cout << "Soil removal flag\t" << to_string(soil_removal_flag) << endl;
+		cout << "Grayscale images:\t" << grayscale_images_directory << endl;
 		cout << "Sampling\t" << to_string(sampling) << endl;
-		cout << "Binary images:\t" << outputpath << endl;
-		cout << "OUT filepath:\t" << fname2 << endl;
-		cout << "OBJ filepath:\t" << fname3 << endl;
+		cout << "Binary images:\t" << binary_images_directory << endl;
+		cout << "OUT filepath:\t" << filepath_out << endl;
+		cout << "OBJ filepath:\t" << filepath_obj << endl;
 
-
-		
+		// Perform segmentation
+		if (soil_removal_flag) {
+			segment(grayscale_images_directory, sampling, binary_images_directory, filepath_out, filepath_obj, filepath_out_soil, filepath_obj_soil);
+		}
+		else {
+			segment(grayscale_images_directory, sampling, binary_images_directory, filepath_out, filepath_obj);
+		}
 	}
 	catch (exception &e)
 	{
 		cerr << e.what() << endl;
 	}
-
-	// FILE *Outfp = fopen(fname2, "w");
-	// int numVert = 0;
-
-	// fprintf(Outfp, "# v%s\n", VERSION.c_str());
-	// fprintf(Outfp, "%20d\n", numVert);
-
-	// FILE *Objfp = fopen(fname3, "w");
-
-	// string filePath = string(inputpath) + "*.png";
-	// vector<String> fn;
-	// glob(filePath, fn);
-	// Mat temp = imread(fn[0], CV_LOAD_IMAGE_GRAYSCALE);
-
-	// float scale = 1.0 / sampling;
-	// resize(temp, temp, Size(), scale, scale, INTER_LINEAR);
-	// int rows, cols, size;
-	// rows = temp.rows;
-	// cols = temp.cols;
-
-	// size = rows * cols;
-	// uchar *im = new uchar[size];
-	// uchar *im2 = new uchar[size];
-
-	// memset(temp.data, 0, size);
-	// double thres1, thres2;
-	// int count_cur, count_prev = 0, count_prev2 = 0;
-	// int id;
-	// float ovlp, ovlp2, ovlp3;
-	// bool flag = false;
-
-	// if (doRemove > 0)
-	// {
-	// 	char *fname4 = argv[7];
-	// 	char *fname5 = argv[8];
-	// 	FILE *Outfp2 = fopen(fname4, "w");
-	// 	int numVert2 = 0;
-
-	// 	fprintf(Outfp2, "# v%s\n", VERSION.c_str());
-	// 	fprintf(Outfp2, "%20d\n", numVert);
-
-	// 	FILE *Objfp2 = fopen(fname5, "w");
-
-	// 	for (int n = 0; n < fn.size(); n += sampling)
-	// 	//for (int n = fn.size()-1; n >= 0; n -= sampling)
-	// 	{
-	// 		id = fn.size() - n;
-	// 		Mat img = imread(fn[n], CV_LOAD_IMAGE_GRAYSCALE);
-	// 		resize(img, img, Size(), scale, scale, INTER_LINEAR);
-	// 		medianBlur(img, img, 3);
-	// 		Mat bw1, bw2, bw3, bw4;
-	// 		memset(im2, 0, size);
-
-	// 		//bw1 -- soil potential
-	// 		thres1 = threshold(img, bw1, 0, 255, THRESH_OTSU);
-	// 		//bwRemove(bw1, 10);
-	// 		//bw2 -- root
-	// 		thres2 = threshold(img, bw2, 0, 255, THRESH_TRIANGLE);
-	// 		count_cur = countNonZero(bw2);
-
-	// 		if (count_prev > 0 && (thres1 - thres2 > 0))
-	// 		{
-	// 			//temp -- root image from prevouis slice
-	// 			bitwise_and(bw1, temp, bw3);
-	// 			ovlp = countNonZero(bw3);
-	// 			ovlp2 = ovlp;
-	// 			ovlp = ovlp / countNonZero(bw1);
-	// 			ovlp2 = ovlp2 / count_prev;
-	// 			subtract(bw2, bw1, bw3);
-	// 			ovlp2 = countNonZero(bw3);
-	// 			ovlp2 = ovlp2 / count_prev;
-
-	// 			bitwise_and(bw3, temp, bw4);
-	// 			ovlp3 = countNonZero(bw4);
-
-	// 			bitwise_and(bw2, temp, bw4);
-
-	// 			// count_prev -- number of root pixels in previous slice
-	// 			// count_prev2 -- number of soil pixels in prevous slice
-	// 			//bitwise_and(bw);
-	// 			//if ((abs(countNonZero(bw3) - count_prev) < abs(countNonZero(bw2) - count_prev) && flag == true) ||
-	// 			if ((abs(countNonZero(bw3) - count_prev) < abs(countNonZero(bw2) - count_prev) && count_prev2 > 0) ||
-	// 					(thres1 - thres2 >= 5 &&
-	// 					 ((count_prev2 > 0 && ovlp < 0.7) || (flag == false && n < 0.8 * fn.size() && ovlp2 > 0.7))))
-	// 			{
-	// 				memcpy(im2, bw1.data, size);
-	// 				bw3.copyTo(bw2);
-	// 				flag = true;
-	// 			}
-	// 		}
-
-	// 		count_cur = countNonZero(bw2);
-	// 		if (n > 0.7 * fn.size() && count_cur > 50 * count_prev)
-	// 		{
-	// 			memset(bw2.data, 0, size);
-	// 			count_cur = 0;
-	// 			memcpy(im2, bw2.data, size);
-	// 		}
-
-	// 		count_prev = count_cur;
-	// 		memcpy(bw1.data, im2, size);
-	// 		count_prev2 = countNonZero(bw1);
-	// 		memcpy(im, bw2.data, size);
-
-	// 		for (int i = 0; i < rows; i++)
-	// 			for (int j = 0; j < cols; j++)
-	// 			{
-	// 				int index = i * cols + j;
-	// 				if (im[index] > 0)
-	// 				{
-	// 					numVert++;
-	// 					fprintf(Objfp, "v %d %d %d\n", j, i, id / sampling);
-	// 					fprintf(Outfp, "%d %d %d\n", j, i, id / sampling);
-	// 				}
-
-	// 				if (im2[index] > 0)
-	// 				{
-	// 					numVert2++;
-	// 					fprintf(Objfp2, "v %d %d %d\n", j, i, id / sampling);
-	// 					fprintf(Outfp2, "%d %d %d\n", j, i, id / sampling);
-	// 				}
-	// 			}
-
-	// 		string filename = fn[n].substr(fn[n].find_last_of("\\") + 1);
-	// 		imwrite(outputpath + filename, bw2);
-	// 		bw2.copyTo(temp);
-	// 	}
-
-	// 	fseek(Outfp2, 0L, SEEK_SET);
-	// 	rewind(Outfp2);
-	// 	fprintf(Outfp, "# v%s\n", VERSION.c_str());
-	// 	fprintf(Outfp2, "%20d\n", numVert2);
-	// }
-
-	// else
-	// {
-	// 	for (int n = 0; n < fn.size(); n += sampling)
-	// 	{
-	// 		id = fn.size() - n;
-	// 		Mat img = imread(fn[n], CV_LOAD_IMAGE_GRAYSCALE);
-	// 		resize(img, img, Size(), scale, scale, INTER_LINEAR);
-	// 		Mat bw2, bw3, bw4;
-	// 		memset(im2, 0, size);
-
-	// 		thres2 = threshold(img, bw2, 0, 255, THRESH_TRIANGLE);
-
-	// 		// NOTE(tparker): Check that the threshold value has not been picked from
-	// 		// the darker side of the histogram, as it's very unlikely that a root
-	// 		// system would be less dense than the air or medium it was scanned in
-	// 		// As a workaround, if the threshold value is picked from the darker side,
-	// 		// then replace any values in the image that are darker than the median
-	// 		// value with the median
-	// 		int median = medianMat(img);
-
-	// 		if (thres2 <= median)
-	// 		{
-	// 			for (int r = 0; r < img.rows; r++)
-	// 			{
-	// 				for (int c = 0; c < img.cols; c++)
-	// 				{
-	// 					if (img.at<uint8_t>(r, c) < (uint8_t)median && (uint8_t)img.at<uint8_t>(r, c) != (uint8_t)0)
-	// 					{
-	// 						img.at<uint8_t>(r, c) = (uint8_t)median;
-	// 					}
-	// 				}
-	// 			}
-	// 			// Redo the threshold with the modified image
-	// 			thres2 = threshold(img, bw2, median, 255, THRESH_TRIANGLE);
-	// 		}
-
-	// 		count_cur = countNonZero(bw2);
-	// 		if (n > 0.7 * fn.size() && count_cur > 50 * count_prev)
-	// 		{
-	// 			memset(bw2.data, 0, size);
-	// 			count_cur = 0;
-	// 			memcpy(im2, bw2.data, size);
-	// 		}
-
-	// 		count_prev = count_cur;
-	// 		memcpy(im, bw2.data, size);
-
-	// 		for (int i = 0; i < rows; i++)
-	// 			for (int j = 0; j < cols; j++)
-	// 			{
-	// 				int index = i * cols + j;
-	// 				if (im[index] > 0)
-	// 				{
-	// 					numVert++;
-	// 					fprintf(Objfp, "v %d %d %d\n", j, i, id / sampling);
-	// 					fprintf(Outfp, "%d %d %d\n", j, i, id / sampling);
-	// 				}
-	// 			}
-
-	// 		string filename = fn[n].substr(fn[n].find_last_of("/") + 1);
-	// 		imwrite(outputpath + filename, bw2);
-	// 		bw2.copyTo(temp);
-	// 	}
-	// }
-
-	// fseek(Outfp, 0L, SEEK_SET);
-	// rewind(Outfp);
-	// fprintf(Outfp, "# v%s\n", VERSION.c_str());
-	// fprintf(Outfp, "%20d\n", numVert);
-
-	// fclose(Outfp);
-	// fclose(Objfp);
-	// delete[] im;
 	return 0;
 }
