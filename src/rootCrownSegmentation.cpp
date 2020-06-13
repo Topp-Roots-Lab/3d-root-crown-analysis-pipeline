@@ -4,27 +4,116 @@
 /*@author: njiang
 /*****************************/
 
+#include <iostream>
+#include <fstream>
+#include <thread>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/imgcodecs.hpp"
-#include <iostream>
+
+#include <boost/filesystem.hpp>
+#include <boost/program_options.hpp>
+
+namespace fs = boost::filesystem;
+namespace po = boost::program_options;
 
 using namespace cv;
 using namespace std;
 
-double medianMat(cv::Mat Input)
+/*
+ * Get version number from VERSION file
+ * 
+ * @param void
+ * @returns string semantic version number
+ */
+string fetchVersion()
 {
-	Input = Input.reshape(0, 1); // spread Input Mat to single row
-	std::vector<double> vecFromMat;
-	Input.copyTo(vecFromMat); // Copy Input Mat to vector vecFromMat
+	// Determine relative location of VERSION file
+	string application_filepath;
+	char buffer[PATH_MAX];
+	ssize_t len = ::readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
+	if (len != -1)
+	{
+		buffer[len] = '\0';
+		application_filepath.assign(string(buffer));
+	}
+	else
+	{
+		cerr << "Unable to determine file location for application." << endl;
+		exit(1);
+	}
+
+	// Fetch version from VERSION file
+	ifstream ifp;
+	fs::path directory_path(application_filepath);
+	fs::path relative_filepath("../VERSION");
+	fs::path version_realpath = directory_path.parent_path() / relative_filepath;
+
+	string version;
+	ifp.open(version_realpath.string());
+	string line;
+	if (ifp.is_open())
+	{
+		getline(ifp, line);
+		version.assign(line);
+	}
+	else
+	{
+		cerr << "Unable to open VERSION file." << endl;
+		exit(1);
+	}
+	ifp.close();
+	return version;
+}
+
+/* 
+ * Calculate median value of matrix
+ * 
+ * The matrix is a 2-D grayscale image
+ * 
+ * @param cv::Mat 2-D matrix of unsigned integer values
+ * @return single integer value as the median
+ */
+int medianMat(cv::Mat image)
+{
+	image = image.reshape(0, 1); // spread image Mat to single row
+	std::vector<int> vecFromMat;
+	image.copyTo(vecFromMat); // Copy image Mat to vector vecFromMat
 	std::nth_element(vecFromMat.begin(), vecFromMat.begin() + vecFromMat.size() / 2, vecFromMat.end());
 	return vecFromMat[vecFromMat.size() / 2];
 }
 
+/*
+ * Convert grayscale images to binary images
+ * 
+ * 
+ * 
+ */
+int segment()
+{
+}
+
 int main(int argc, char **argv)
 {
-	char name[300];
+	// Configure program options
+	try
+	{
+		// Required parameters
+		int doRemove;			 // soil removal flag
+		string inputpath;	 // grayscale image directory
+		int sampling;			 // downsampling factor (i.e., a sampling of 2 processes half the total grayscale slices)
+		string outputpath; // binary image directory
+		char *fname2;			 // OUT output filepath
+		char *fname3;			 // OBJ output filepath
+
+		string VERSION;
+		VERSION.assign(fetchVersion());
+	}
+	catch (exception &e)
+	{
+		cerr << e.what() << endl;
+	}
 
 	int doRemove = atoi(argv[1]);
 	string inputpath = argv[2];
@@ -36,7 +125,7 @@ int main(int argc, char **argv)
 	FILE *Outfp = fopen(fname2, "w");
 	int numVert = 0;
 
-	fprintf(Outfp, "0.15\n");
+	fprintf(Outfp, "# v%s\n", VERSION.c_str());
 	fprintf(Outfp, "%20d\n", numVert);
 
 	FILE *Objfp = fopen(fname3, "w");
@@ -58,7 +147,6 @@ int main(int argc, char **argv)
 
 	memset(temp.data, 0, size);
 	double thres1, thres2;
-	//Mat temp;
 	int count_cur, count_prev = 0, count_prev2 = 0;
 	int id;
 	float ovlp, ovlp2, ovlp3;
@@ -71,7 +159,7 @@ int main(int argc, char **argv)
 		FILE *Outfp2 = fopen(fname4, "w");
 		int numVert2 = 0;
 
-		fprintf(Outfp2, "0.15\n");
+		fprintf(Outfp2, "# v%s\n", VERSION.c_str());
 		fprintf(Outfp2, "%20d\n", numVert);
 
 		FILE *Objfp2 = fopen(fname5, "w");
@@ -163,7 +251,7 @@ int main(int argc, char **argv)
 
 		fseek(Outfp2, 0L, SEEK_SET);
 		rewind(Outfp2);
-		fprintf(Outfp2, "0.15\n");
+		fprintf(Outfp, "# v%s\n", VERSION.c_str());
 		fprintf(Outfp2, "%20d\n", numVert2);
 	}
 
@@ -185,7 +273,7 @@ int main(int argc, char **argv)
 			// As a workaround, if the threshold value is picked from the darker side,
 			// then replace any values in the image that are darker than the median
 			// value with the median
-			int median = int(medianMat(img));
+			int median = medianMat(img);
 
 			if (thres2 <= median)
 			{
@@ -234,7 +322,7 @@ int main(int argc, char **argv)
 
 	fseek(Outfp, 0L, SEEK_SET);
 	rewind(Outfp);
-	fprintf(Outfp, "0.15\n");
+	fprintf(Outfp, "# v%s\n", VERSION.c_str());
 	fprintf(Outfp, "%20d\n", numVert);
 
 	fclose(Outfp);

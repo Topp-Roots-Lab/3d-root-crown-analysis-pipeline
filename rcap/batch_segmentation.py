@@ -7,56 +7,37 @@ import shutil
 import subprocess
 from datetime import datetime as dt
 from multiprocessing import Pool, cpu_count
+from time import time
 
 from tqdm import tqdm
 
 from __init__ import __version__
+from utils import configure_logging
 
 
-def options():
+def parse_options():
     parser = argparse.ArgumentParser(description='Root Crowns Segmentation',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
     parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
     parser.add_argument('-t', "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
-    parser.add_argument("path", metavar='PATH', type=str, nargs='+', help='Input directory to process')
-
+    parser.add_argument("-f", '--force', action="store_true", help="Force file creation. Overwrite any existing files.")
+    parser.add_argument("-n", '--dry-run', dest='dryrun', action="store_true", help="Perform a trial run. Do not create image files, but logs will be updated.")
     parser.add_argument('--soil', action='store_true', help="Extract any soil during segmentation.")
-    parser.add_argument('-i', "--input_folder", action="store_true", help="Deprecated. Directory of original image slices") # left in for backwards compatibility
     parser.add_argument('-s', "--sampling", help="resolution parameter", default=2)
+    parser.add_argument("path", metavar='PATH', type=str, nargs=1, help='Input directory to process')
     args = parser.parse_args()
-
-    # Configure logging, stderr and file logs
-    logging_level = logging.INFO
-    if args.verbose:
-        logging_level = logging.DEBUG
-
-    lfp = f"{dt.today().strftime('%Y-%m-%d')}_{os.path.splitext(os.path.basename(__file__))[0]}.log"
-
-    logFormatter = logging.Formatter("%(asctime)s - [%(levelname)-4.8s] - %(filename)s %(lineno)d - %(message)s")
-    rootLogger = logging.getLogger()
-    rootLogger.setLevel(logging.DEBUG)
-
-    fileHandler = logging.FileHandler(lfp)
-    fileHandler.setFormatter(logFormatter)
-    fileHandler.setLevel(logging.DEBUG) # always show debug statements in log file
-    rootLogger.addHandler(fileHandler)
-
-    consoleHandler = logging.StreamHandler()
-    consoleHandler.setFormatter(logFormatter)
-    consoleHandler.setLevel(logging_level)
-    rootLogger.addHandler(consoleHandler)
 
     # Make sure user does not request more CPUs can available
     if args.threads > cpu_count():
         args.threads = cpu_count()
 
-    # Recode soil input to match the input of rootCrownSegmentation binary
-    if args.soil:
-        args.soil = 1
-    else:
-        args.soil = 0
+    args.module_name = f"{os.path.splitext(os.path.basename(__file__))[0]}"
+    configure_logging(args)
+    if args.dryrun:
+        logging.info(f"DRY-RUN MODE ENABLED")
 
-    logging.debug(f'Running {__file__} {__version__}')
+    # Recode soil input to match the input of rootCrownSegmentation binary
+    args.soil = 1 if args.soil else 0
 
     return args
 
@@ -64,12 +45,16 @@ def options():
 def run(cmd):
     logging.debug(f"Run command: '{' '.join(cmd)}'")
     p = subprocess.run(cmd, check=True, capture_output=True, text=True)
-    logging.debug(p.stdout)
+    if p.stdout:
+        logging.debug(f"rootCrownSegmentation\t{p.stdout}")
+    # if p.stderr:
+    logging.error(f"rootCrownSegmentation\t{p.stderr}")
     if p.returncode > 0:
         logging.error(f"Error encountered. 'rootCrownSegmentation' returned {p.returncode}")
 
 if __name__ == "__main__":
-    args = options()
+    args = parse_options()
+    start_time = time()
 
     # Clean up input folders
     args.path = [ os.path.realpath(fp) for fp in args.path ]
@@ -138,3 +123,5 @@ if __name__ == "__main__":
         p.join()
     pbar.close()
     pbar = None
+
+    logging.debug(f'Total execution time: {time() - start_time} seconds')

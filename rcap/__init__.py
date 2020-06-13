@@ -1,1 +1,2 @@
-__version__ = '1.5.0'
+with open ('VERSION', 'r') as ifp:
+	__version__ = ifp.readline()
