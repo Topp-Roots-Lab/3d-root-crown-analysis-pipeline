@@ -166,7 +166,6 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 
 		// Compare the white pixel counts between the current slice and previous slice
 		count_cur = countNonZero(binary_image);
-		// cout << "n: " << n << "\tcount_cur: " << count_cur << "\t fn.size(): " << fn.size() << "\tcount_prev * 50: " << (50 * count_prev) << "\tCheck result: " << (n > 0.7 * fn.size() && count_cur > 50 * count_prev) << endl;
 
 		// Reset the thresholded image to pure black when...
 		// 70% of the volume has been processed
@@ -201,22 +200,18 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 		// Write thresholded binary image to disk
 		string filename = fn[n].substr(fn[n].find_last_of("/") + 1);
 		imwrite(binary_images_directory + filename, binary_image);
-		cout << "Write '" << filename << "'" << endl;
+		cout << "Write binary image '" << filename << "'" << endl;
 	}
 
 	// Update vertex count and version for OUT file
-	cout << "Adjusting OUT header...";
 	fseek(Outfp, 0L, SEEK_SET);
 	rewind(Outfp);
 	fprintf(Outfp, "# v%s\n", VERSION.c_str());
 	fprintf(Outfp, "%20d\n", numVert);
-	cout << "done." << endl;
 
 	// Clean up
-	cout << "Cleaning up...";
 	fclose(Outfp);
 	fclose(Objfp);
-	cout << "done." << endl;
 	return 0;
 }
 
@@ -282,7 +277,7 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 	float ovlp,
 			 	ovlp2,
 				ovlp3;																 
-	bool flag = false;																			 // some flag
+	bool flag = false;																			 // ?
 
 	// For each grayscale image...
 	for (int n = 0; n < fn.size(); n += sampling)
@@ -306,27 +301,45 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 
 		// When the previous slice has root material
 		// AND
-		// the threshold for root is less dense/bright than the threshold for soil
+		// the threshold for current root is less dense/bright than that of the current soil
 		if (count_prev_root > 0 && (soil_threshold_value - root_threshold_value > 0))
 		{
 			// temp -> root image from previous slice
-			bitwise_and(soil_binary_image, temp, bw3);					 // bitwise_and of current soil and previous root saved as bw3
-			ovlp = countNonZero(bw3);														 // number of white pixels of bitwise_and between current soil and previous root
-			ovlp2 = ovlp;																				 // number of white pixels of bitwise_and between current soil and previous root
-			ovlp = ovlp / countNonZero(soil_binary_image);       // (current soil bitwise& previous root) / (current soil)
-			subtract(root_binary_image, soil_binary_image, bw3); // save the difference between current root and current soil saved as bw3
-			ovlp2 = countNonZero(bw3);													 // count the number of different pixels between current root and current soil
-			ovlp2 = ovlp2 / count_prev_root;
+			bitwise_and(soil_binary_image, temp, bw3);					 // intersection of current soil and previous root
+			ovlp = countNonZero(bw3);														 // number of white pixels of intersection of current soil and previous root
+			ovlp2 = ovlp;																				 // number of white pixels of intersection of current soil and previous root
+			ovlp = ovlp / countNonZero(soil_binary_image);       // percentage -> (intersection of current soil and previous root) / (current soil)
+			subtract(root_binary_image, soil_binary_image, bw3); // difference between current root and current soil
+			ovlp2 = countNonZero(bw3);													 // number of white pixels for difference between current root and current soil
+			ovlp2 = ovlp2 / count_prev_root;										 // percentage -> (difference of current root and current soil) / previous root
 
-			bitwise_and(bw3, temp, bw4);
-			ovlp3 = countNonZero(bw4);
+			bitwise_and(bw3, temp, bw4);												 // intersection of (difference between current root and current soil) and previous root
+			ovlp3 = countNonZero(bw4);													 // number of white pixels for intersection of (difference between current root and current soil) and previous root
 
-			bitwise_and(root_binary_image, temp, bw4);
+			bitwise_and(root_binary_image, temp, bw4);					 // intersection of current root and previous root
 
-			if ((abs(countNonZero(bw3) - count_prev_root) < abs(countNonZero(root_binary_image) - count_prev_root) && count_prev_soil > 0) ||
-					(soil_threshold_value - root_threshold_value >= 5 &&
-					 ((count_prev_soil > 0 && ovlp < 0.7) || (flag == false && n < 0.8 * fn.size() && ovlp2 > 0.7))))
+			if (
+					// ( |(pxlCount of diff cRoot and cSoil - pxlCount of pRoot)| < |pxlCount of cRoot| ) AND (there was soil in previous slice)
+						(abs(countNonZero(bw3) - count_prev_root) < abs(countNonZero(root_binary_image) - count_prev_root) && count_prev_soil > 0) ||
+					// OR
+					// (Soil is more dense than root by 5 units) AND 
+					// 			(there was soil in previous slice AND the percentage of (intersection of current soil and previous root) / (current soil) is less than 70% )
+					// 			 OR
+					//      (At least one slice has been flagged previously) 
+					//         AND
+					//      (the current slice is in the top 80% of volume)
+					//         AND
+					//      (percentage of (difference of current root and current soil) / previous root) is greater than 70%)
+						(
+							soil_threshold_value - root_threshold_value >= 5 &&
+							(
+								(count_prev_soil > 0 && ovlp < 0.7) ||
+								(flag == false && n < 0.8 * fn.size() && ovlp2 > 0.7)
+							)
+						)
+					)
 			{
+				// Replace current root with the difference between current root and current soil
 				bw3.copyTo(root_binary_image);
 				flag = true;
 			}
@@ -379,6 +392,7 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 		// Write thresholded binary image to disk
 		string filename = fn[n].substr(fn[n].find_last_of("\\") + 1);
 		imwrite(binary_images_directory + filename, root_binary_image);
+		cout << "Write binary image '" << filename << "'" << endl;
 
 		// Save current root image data to temp for comparison with next slice
 		root_binary_image.copyTo(temp);
@@ -516,7 +530,7 @@ int main(int argc, char **argv)
 		else {
 			segment(grayscale_images_directory, sampling, binary_images_directory, filepath_out, filepath_obj);
 		}
-		cout << "Finished. Exiting." << endl;
+		cout << "Finished processing " << grayscale_images_directory << ". Exiting." << endl;
 	}
 	catch (exception &e)
 	{
