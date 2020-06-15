@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.6.0 - 2020-06-15
+
+### Added
+
+- Redundant logging to `/var/log/3drcap` for all modules
+- Additional logging for `rootCrownSegmentation` (handled by `batch_segmentation` module)
+- Utility module for centralizing logging configuration
+- Functionality for compressing VRML files to CTM using `meshlabserver`
+- Version of `rootCrownSegmentation` included in generated OBJ files
+
+### Changed
+
+- Migrated `rootCrownImageAnalysis3D` from Python 2 to 3
+- Removed `-i` flag support in favor of a single positional argument, except for `rootCrownImageAnalysis3D`
+- Replaced multiprocessing Pool with ThreadedPool to allow for simultaneously existing progress bars (`batch_segmentation`)
+- Logs are named to the nearest minute
+- Added alternative segmentation method when errors detected due to narrow histogram - (*under development*)
+- Updated version of `Skeleton` to v2.1.0-rc
+- Slice thickness is no longer required as input for the `rootCrownImageAnalysis3D` (see note 1)
+- Removed `.CSV` output file for slices flagged for incorrect segmentation (see note 2)
+
+### Fixed
+
+- Typos in comments and documentation
+
+### Notes
+1. The slice thickness value, which is normally specified with the `-t` flag on `rootCrownImageAnalysis3D`, is now
+extracted from the `.DAT` associated with any specified volume. If the file cannot be located, then user input is 
+required. The `-t` flag will remain available, and if it is supplied, it will take precedence over any values pulled
+from a `.DAT` file.
+2. This was removed because it provides less information than the individual TXT
+files that list the exact problematic slices.
+
 ## v1.5.0 - 2020-04-23
 
 ### Added
