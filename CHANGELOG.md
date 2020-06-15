@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## v1.6.0 - 2020-06-14
+## v1.6.0 - 2020-06-15
 
 ### Added
 
@@ -20,10 +20,20 @@ All notable changes to this project will be documented in this file.
 - Logs are named to the nearest minute
 - Added alternative segmentation method when errors detected due to narrow histogram - (*under development*)
 - Updated version of `Skeleton` to v2.1.0-rc
+- Slice thickness is no longer required as input for the `rootCrownImageAnalysis3D` (see note 1)
+- Removed `.CSV` output file for slices flagged for incorrect segmentation (see note 2)
 
 ### Fixed
 
 - Typos in comments and documentation
+
+### Notes
+1. The slice thickness value, which is normally specified with the `-t` flag on `rootCrownImageAnalysis3D`, is now
+extracted from the `.DAT` associated with any specified volume. If the file cannot be located, then user input is 
+required. The `-t` flag will remain availble, and if it is supplied, it will take precedence over any values pulled
+from a `.DAT` file.
+2. This was removed because it provides less information than the individual TXT
+files that list the exact problematic slices.
 
 ## v1.5.0 - 2020-04-23
 

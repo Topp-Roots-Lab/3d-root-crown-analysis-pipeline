@@ -147,7 +147,7 @@ if __name__ == "__main__":
 	meshlabserver = shutil.which("meshlabserver")
 	if meshlabserver is not None:
 		wrl_files = [os.path.join(os.path.dirname(args.path[0]),f) for f in os.listdir(os.path.dirname(args.path[0])) if f.endswith('.wrl')]
-		pbar = tqdm(total = len(wrl_files), desc="Converting all WRL to CTM with Meshlab")
+		pbar = tqdm(total = len(wrl_files), desc="Converting WRL to CTM with Meshlab")
 		def conversion_callback(*args):
 			if pbar is not None:
 				pbar.update()
