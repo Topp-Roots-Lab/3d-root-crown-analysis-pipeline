@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.6.0 - 2020-06-14
+
+### Added
+
+- Redundant logging to `/var/log/3drcap` for all modules
+- Additional logging for `rootCrownSegmentation` (handled by `batch_segmentation` module)
+- Utility module for centralizing logging configuration
+- Functionality for compressing VRML files to CTM using `meshlabserver`
+- Version of `rootCrownSegmentation` included in generated OBJ files
+
+### Changed
+
+- Mirgrated `rootCrownImageAnalysis3D` from Python 2 to 3
+- Removed `-i` flag support in favor of a single positional argument, except for `rootCrownImageAnalysis3D`
+- Replaced multiprocessing Pool with ThreadedPool to allow for simultaneously existing progress bars (`batch_segmentation`)
+- Logs are named to the nearest minute
+- Added alternative segmentation method when errors detected due to narrow histogram - (*under development*)
+- Updated version of `Skeleton` to v2.1.0-rc
+
+### Fixed
+
+- Typos in comments and documentation
+
 ## v1.5.0 - 2020-04-23
 
 ### Added

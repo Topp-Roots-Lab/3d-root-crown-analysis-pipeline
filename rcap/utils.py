@@ -20,7 +20,6 @@ def configure_logging(args):
 
 	# Set project-level logging
 	logfile_basename = f"{dt.today().strftime('%Y-%m-%d')}_{args.module_name}.log"
-	print(args.path)
 	lfp = os.path.join(os.path.realpath(args.path[0]), logfile_basename)
 	fileHandler = logging.FileHandler(lfp)
 	fileHandler.setFormatter(logFormatter)

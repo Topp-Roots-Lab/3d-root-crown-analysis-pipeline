@@ -43,8 +43,6 @@ def parse_options():
 
 	return args
 
-VOLUMES_PROCESSED = 0
-
 # Async function to call rootCrownSegmentation binary
 def run(cmd, args, lock):
 	logging.debug(f"Run command: '{' '.join(cmd)}'")
@@ -59,7 +57,7 @@ def run(cmd, args, lock):
 	# Start processing
 	with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as p:
 
-		# Parse stdout from processing
+		# Parse stdout from subprocess
 		complete = False
 		for line in iter(p.stdout.readline, b''):
 			if complete:

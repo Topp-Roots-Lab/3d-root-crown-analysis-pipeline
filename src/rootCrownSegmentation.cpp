@@ -6,7 +6,6 @@
 
 #include <iostream>
 #include <fstream>
-#include <thread>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include "opencv2/imgproc/imgproc.hpp"
@@ -21,51 +20,9 @@ namespace po = boost::program_options;
 using namespace cv;
 using namespace std;
 
-/*
- * Get version number from VERSION file
- *
- * @param void
- * @returns string semantic version number
- */
-string fetchVersion()
-{
-	// Determine relative location of VERSION file
-	string application_filepath;
-	char buffer[PATH_MAX];
-	ssize_t len = ::readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
-	if (len != -1)
-	{
-		buffer[len] = '\0';
-		application_filepath.assign(string(buffer));
-	}
-	else
-	{
-		cerr << "Unable to determine file location for application." << endl;
-		exit(1);
-	}
-
-	// Fetch version from VERSION file
-	ifstream ifp;
-	fs::path directory_path(application_filepath);
-	fs::path relative_filepath("../VERSION");
-	fs::path version_realpath = directory_path.parent_path() / relative_filepath;
-
-	string version;
-	ifp.open(version_realpath.string());
-	string line;
-	if (ifp.is_open())
-	{
-		getline(ifp, line);
-		version.assign(line);
-	}
-	else
-	{
-		cerr << "Unable to open VERSION file." << endl;
-		exit(1);
-	}
-	ifp.close();
-	return  string(__FILE__) + " " + version;
-}
+const string MODULE_NAME = "rootCrownSegmentation";
+const string VERSION_NO = "1.1.0";
+const string VERSION = MODULE_NAME + " " + VERSION_NO;
 
 /*
  * Calculate median value of matrix
@@ -95,13 +52,10 @@ int medianMat(cv::Mat image)
  */
 int segment(string grayscale_images_directory, int sampling, string binary_images_directory, string filepath_out, string filepath_obj)
 {
-	string VERSION;
-	VERSION.assign(fetchVersion());
-
 	// Initialize OUT file
 	FILE *Outfp = fopen(filepath_out.c_str(), "w");
 	int numVert = 0;
-	fprintf(Outfp, "# v%s\n", VERSION.c_str());
+	fprintf(Outfp, "# %s\n", VERSION.c_str());
 	fprintf(Outfp, "%20d\n", numVert);
 
 	// Initialize OBJ file
@@ -228,16 +182,12 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
  */
 int segment(string grayscale_images_directory, int sampling, string binary_images_directory, string filepath_out, string filepath_obj, string filepath_out_soil, string filepath_obj_soil)
 {
-
-	string VERSION;
-	VERSION.assign(fetchVersion());
-
 	// Initialize OUT files
 	FILE *Outfp_root = fopen(filepath_out.c_str(), "w");      // Root .OUT file handler
 	FILE *Outfp_soil = fopen(filepath_out_soil.c_str(), "w"); // Soil .OUT file handler
 	
 	int numVert_root = 0;
-	fprintf(Outfp_root, "# v%s\n", VERSION.c_str());
+	fprintf(Outfp_root, "# %s\n", VERSION.c_str());
 	fprintf(Outfp_root, "%20d\n", numVert_root);
 	int numVert_soil = 0;
 	fprintf(Outfp_soil, "# v%s\n", VERSION.c_str());
@@ -431,9 +381,6 @@ int main(int argc, char **argv)
 		string filepath_obj;							 // OBJ output filepath (root system)
 		string filepath_out_soil;		 			 // OUT output filepath (soil)
 		string filepath_obj_soil;					 // OBJ output filepath (soil)
-
-		string VERSION;
-		VERSION.assign(fetchVersion());
 
 		po::options_description generic("");
 		generic.add_options()
