@@ -14,7 +14,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- Mirgrated `rootCrownImageAnalysis3D` from Python 2 to 3
+- Migrated `rootCrownImageAnalysis3D` from Python 2 to 3
 - Removed `-i` flag support in favor of a single positional argument, except for `rootCrownImageAnalysis3D`
 - Replaced multiprocessing Pool with ThreadedPool to allow for simultaneously existing progress bars (`batch_segmentation`)
 - Logs are named to the nearest minute
@@ -30,7 +30,7 @@ All notable changes to this project will be documented in this file.
 ### Notes
 1. The slice thickness value, which is normally specified with the `-t` flag on `rootCrownImageAnalysis3D`, is now
 extracted from the `.DAT` associated with any specified volume. If the file cannot be located, then user input is 
-required. The `-t` flag will remain availble, and if it is supplied, it will take precedence over any values pulled
+required. The `-t` flag will remain available, and if it is supplied, it will take precedence over any values pulled
 from a `.DAT` file.
 2. This was removed because it provides less information than the individual TXT
 files that list the exact problematic slices.
