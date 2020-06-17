@@ -35,7 +35,7 @@ def parse_options():
 		args.threads = cpu_count()
 
 	args.module_name = f"{os.path.splitext(os.path.basename(__file__))[0]}"
-	configure_logging(args)
+	configure_logging(args, ifp=os.path.basename(os.path.realpath(args.path[0])))
 	if args.dryrun:
 		logging.info(f"DRY-RUN MODE ENABLED")
 

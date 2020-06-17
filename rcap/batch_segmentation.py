@@ -34,7 +34,7 @@ def parse_options():
 		args.threads = cpu_count()
 
 	args.module_name = f"{os.path.splitext(os.path.basename(__file__))[0]}"
-	configure_logging(args)
+	configure_logging(args, ifp=os.path.basename(os.path.realpath(args.path[0])))
 	if args.dryrun:
 		logging.info(f"DRY-RUN MODE ENABLED")
 
@@ -44,7 +44,7 @@ def parse_options():
 	return args
 
 # Async function to call rootCrownSegmentation binary
-def run(cmd, args, lock):
+def run(cmd, args, lock, position):
 	logging.debug(f"Run command: '{' '.join(cmd)}'")
 
 	# Create an individual progress bar for volume
@@ -52,7 +52,7 @@ def run(cmd, args, lock):
 	text = f"Segmenting '{volume_name}'"
 	slice_count = round(len([ img for img in os.listdir(fp) if img.endswith('png')  ]) / args.sampling)
 	with lock:
-		progress_bar = tqdm(total = slice_count, desc=text)
+		progress_bar = tqdm(total = slice_count, desc=text, position=position)
 
 	# Start processing
 	with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as p:
@@ -65,7 +65,8 @@ def run(cmd, args, lock):
 			if line != '':
 				logging.debug(line.strip())
 				if volume_name in line and line.startswith('Write'):
-					progress_bar.update()
+					with lock:
+						progress_bar.update()
 				if "Exiting" in line or "Abort" in line:
 					complete = True
 
@@ -134,7 +135,7 @@ if __name__ == "__main__":
 		cmd_list.append(cmd)
 
 	# Create overall progress bar
-	pbar = tqdm(total = len(cmd_list), desc=f"Overall progress")
+	pbar = tqdm(total = len(cmd_list), position = 1, desc=f"Overall progress")
 	def pbar_update(*args):
 		pbar.update()
 
@@ -146,12 +147,11 @@ if __name__ == "__main__":
 	lock = threading.Lock()
 	with ThreadPool(args.threads) as p:
 		# For each slice in the volume...
-		for cmd in cmd_list:
+		for i, cmd in enumerate(cmd_list, start = 2):
 			# Run command as separate process
-			p.apply_async(run, args=(cmd, args, lock), callback=pbar_update, error_callback=subprocess_error_callback)
+			p.apply_async(run, args=(cmd, args, lock, i), callback=pbar_update, error_callback=subprocess_error_callback)
 		p.close()
 		p.join()
 	pbar.close()
-	pbar = None
 
 	logging.debug(f'Total execution time: {time() - start_time} seconds')

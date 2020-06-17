@@ -17,15 +17,16 @@ All notable changes to this project will be documented in this file.
 - Migrated `rootCrownImageAnalysis3D` from Python 2 to 3
 - Removed `-i` flag support in favor of a single positional argument, except for `rootCrownImageAnalysis3D`
 - Replaced multiprocessing Pool with ThreadedPool to allow for simultaneously existing progress bars (`batch_segmentation`)
-- Logs are named to the nearest minute
-- Added alternative segmentation method when errors detected due to narrow histogram - (*under development*)
+- Logs are named to the nearest second and include the input folder as part of the file name
 - Updated version of `Skeleton` to v2.1.0-rc
 - Slice thickness is no longer required as input for the `rootCrownImageAnalysis3D` (see note 1)
 - Removed `.CSV` output file for slices flagged for incorrect segmentation (see note 2)
+- Reduce default probability that a point is included in downsampled OBJ for the `qc_point_cloud` module
 
 ### Fixed
 
 - Typos in comments and documentation
+- `qc_point_cloud` now will correctly process a data folder with exactly one volume (previously it would state that no volumes were present)
 
 ### Notes
 1. The slice thickness value, which is normally specified with the `-t` flag on `rootCrownImageAnalysis3D`, is now

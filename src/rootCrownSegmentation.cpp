@@ -21,7 +21,7 @@ using namespace cv;
 using namespace std;
 
 const string MODULE_NAME = "rootCrownSegmentation";
-const string VERSION_NO = "1.1.0";
+const string VERSION_NO = "1.0.0";
 const string VERSION = MODULE_NAME + " " + VERSION_NO;
 
 /*
@@ -94,29 +94,29 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 
 		threshold_value = threshold(grayscale_image, binary_image, 0, 255, THRESH_TRIANGLE);
 
-		// NOTE(tparker): Check that the threshold value has not been picked from
-		// the darker side of the histogram, as it's very unlikely that a root
-		// system would be less dense than the air or medium it was scanned in
-		// As a workaround, if the threshold value is picked from the darker side,
-		// then replace any values in the image that are darker than the median
-		// value with the median
-		int median = medianMat(grayscale_image);
+		// // NOTE(tparker): Check that the threshold value has not been picked from
+		// // the darker side of the histogram, as it's very unlikely that a root
+		// // system would be less dense than the air or medium it was scanned in
+		// // As a workaround, if the threshold value is picked from the darker side,
+		// // then replace any values in the image that are darker than the median
+		// // value with the median
+		// int median = medianMat(grayscale_image);
 
-		if (threshold_value <= median)
-		{
-			for (int r = 0; r < grayscale_image.rows; r++)
-			{
-				for (int c = 0; c < grayscale_image.cols; c++)
-				{
-					if (grayscale_image.at<uint8_t>(r, c) < (uint8_t)median && (uint8_t)grayscale_image.at<uint8_t>(r, c) != (uint8_t)0)
-					{
-						grayscale_image.at<uint8_t>(r, c) = (uint8_t)median;
-					}
-				}
-			}
-			// Redo the threshold with the modified image
-			threshold_value = threshold(grayscale_image, binary_image, median, 255, THRESH_TRIANGLE);
-		}
+		// if (threshold_value <= median)
+		// {
+		// 	for (int r = 0; r < grayscale_image.rows; r++)
+		// 	{
+		// 		for (int c = 0; c < grayscale_image.cols; c++)
+		// 		{
+		// 			if (grayscale_image.at<uint8_t>(r, c) < (uint8_t)median && (uint8_t)grayscale_image.at<uint8_t>(r, c) != (uint8_t)0)
+		// 			{
+		// 				grayscale_image.at<uint8_t>(r, c) = (uint8_t)median;
+		// 			}
+		// 		}
+		// 	}
+		// 	// Redo the threshold with the modified image
+		// 	threshold_value = threshold(grayscale_image, binary_image, median, 255, THRESH_TRIANGLE);
+		// }
 
 		// Compare the white pixel counts between the current slice and previous slice
 		count_cur = countNonZero(binary_image);
@@ -125,7 +125,7 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 		// 70% of the volume has been processed
 		// AND
 		// The number of white pixels on the current slice is 50 times more than the previous slice
-		// TODO(tparker): Check why this was included
+		// TODO(tparker): Check why 70% and 50x were selected
 		if (n > 0.7 * fn.size() && count_cur > 50 * count_prev)
 		{
 			count_cur = 0;
@@ -434,23 +434,27 @@ int main(int argc, char **argv)
 		if (vm.count("help") ||
 		// If any arguments are missing
 			 !(
-					(vm.count("soil-removal-flag") &&
+					vm.count("soil-removal-flag") &&
 					vm.count("grayscale-images-directory") &&
 					vm.count("sampling") &&
 					vm.count("binary-images-directory") &&
 					vm.count("out-filepath") &&
-					vm.count("obj-filepath"))
-				) ||
-		// If soil should be removed, but no output files are provided
-				(
-					soil_removal_flag &&
-					!(vm.count("out-filepath-soil") && vm.count("obj-filepath-soil")))
+					vm.count("obj-filepath")
 				)
+		)
 		{
 			cout << "usage: " << argv[0] << " [-h] [-v] [-V] REMOVE_SOIL_FLAG GRAYSCALE_IMAGE_DIRECTORY SAMPLING BINARY_IMAGE_DIRECTORY OUT_FILEPATH OBJ_FILEPATH " << endl;
 			cout << generic << endl;
-			return 1;
+			return 0;
 		}
+
+		// If soil should be removed, but no output files are provided
+		 if (soil_removal_flag &&	!(vm.count("out-filepath-soil") && vm.count("obj-filepath-soil")))
+		 {
+			cout << "usage: " << argv[0] << " [-h] [-v] [-V] REMOVE_SOIL_FLAG GRAYSCALE_IMAGE_DIRECTORY SAMPLING BINARY_IMAGE_DIRECTORY OUT_FILEPATH OBJ_FILEPATH " << endl;
+			cout << generic << endl;
+			return 1;
+		 }
 
 		// Map program options
 		grayscale_images_directory = vm["grayscale-images-directory"].as<string>();

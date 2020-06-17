@@ -21,19 +21,19 @@ def parse_options():
 	parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
 	parser.add_argument('-t', "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
 	parser.add_argument("-f", "--force", action="store_true", help="Force file creation. Overwrite any existing files.")
-	parser.add_argument("-p", "--probability", type=float, default=0.05, help="Probability that a point will be kept ")
+	parser.add_argument("-p", "--probability", type=float, default=0.03, help="Probability that a point will be kept ")
 	parser.add_argument("path", metavar='PATH', type=str, nargs='+', help='Input directory to process. Must contain folder with thresholded images.')
 	args = parser.parse_args()
 
 	args.module_name = f"{os.path.splitext(os.path.basename(__file__))[0]}"
-	configure_logging(args)
+	configure_logging(args, ifp=os.path.basename(os.path.realpath(args.path[0])))
 
 	# Make sure user does not request more CPUs can available
 	if args.threads > cpu_count():
 		args.threads = cpu_count()
 
 	# Make sure probability is between 0 and 1
-	if args.probability < 0 or args.probability > 1.0:
+	if not (0 <= args.probability<= 1.0):
 		raise ValueError(f"User-defined probability is invalid: '{args.probability}'. It must be between 0 and 1.0.")
 
 	return args
@@ -83,7 +83,7 @@ if __name__ == "__main__":
 		logging.info(f"Found {len(args.path)} volume(s).")
 		logging.debug(f"Unique files: {args.path}")
 
-		if len(args.path) == 1:
+		if len(args.path) == 1 and args.path[0] == '':
 			logging.warning(f"No volumes supplied.")
 		else:
 			pbar = tqdm(total = len(args.path), desc=f"Downsampling point cloud data (OBJ)")
