@@ -56,7 +56,6 @@ def run(cmd, args, lock, position):
 
 	# Start processing
 	with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as p:
-
 		# Parse stdout from subprocess
 		complete = False
 		for line in iter(p.stdout.readline, b''):
@@ -73,10 +72,11 @@ def run(cmd, args, lock, position):
 		# Report any run-time errors
 		if p.returncode is not None and p.returncode > 0:
 			logging.error(f"Error encountered. 'rootCrownSegmentation' returned {p.returncode}")
-		
+
 		# Clean up progress bar for volume
 		with lock:
 			progress_bar.close()
+			progress_bar = None
 
 if __name__ == "__main__":
 	args = parse_options()
@@ -134,24 +134,25 @@ if __name__ == "__main__":
 			cmd += [soil_out_fp, soil_obj_fp]
 		cmd_list.append(cmd)
 
-	# Create overall progress bar
-	pbar = tqdm(total = len(cmd_list), position = 1, desc=f"Overall progress")
-	def pbar_update(*args):
-		pbar.update()
-
-	def subprocess_error_callback(*args):
-		logging.error(args)
-
 	# Process data
 	# Dedicate N CPUs for processing
-	lock = threading.Lock()
 	with ThreadPool(args.threads) as p:
+		lock = threading.Lock()
+		# Create overall progress bar
+		pbar = tqdm(total = len(cmd_list), position = 0, desc=f"Overall progress")
+		def pbar_update(*args):
+			pbar.update()
+			pass
+		def subprocess_error_callback(*args):
+			logging.error(args)
+
 		# For each slice in the volume...
-		for i, cmd in enumerate(cmd_list, start = 2):
+		for i, cmd in enumerate(cmd_list, start = 1):
 			# Run command as separate process
 			p.apply_async(run, args=(cmd, args, lock, i), callback=pbar_update, error_callback=subprocess_error_callback)
 		p.close()
 		p.join()
-	pbar.close()
+		# Close progress bar
+		pbar.close()
 
-	logging.debug(f'Total execution time: {time() - start_time} seconds')
+	logging.info(f'Total execution time: {time() - start_time} seconds')
