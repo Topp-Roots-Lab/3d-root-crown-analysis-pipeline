@@ -2,7 +2,7 @@ import os
 
 import setuptools
 
-with open ('VERSION'), 'r') as ifp:
+with open ('VERSION', 'r') as ifp:
 	__version__ = ifp.readline()
 with open("README.md", "r") as fh:
     long_description = fh.read()
