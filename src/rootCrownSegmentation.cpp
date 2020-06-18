@@ -160,7 +160,7 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 	// Update vertex count and version for OUT file
 	fseek(Outfp, 0L, SEEK_SET);
 	rewind(Outfp);
-	fprintf(Outfp, "# v%s\n", VERSION.c_str());
+	fprintf(Outfp, "# %s\n", VERSION.c_str());
 	fprintf(Outfp, "%20d\n", numVert);
 
 	// Clean up
@@ -190,7 +190,7 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 	fprintf(Outfp_root, "# %s\n", VERSION.c_str());
 	fprintf(Outfp_root, "%20d\n", numVert_root);
 	int numVert_soil = 0;
-	fprintf(Outfp_soil, "# v%s\n", VERSION.c_str());
+	fprintf(Outfp_soil, "# %s\n", VERSION.c_str());
 	fprintf(Outfp_soil, "%20d\n", numVert_soil);
 
 	// Initialize OBJ files
@@ -351,12 +351,12 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 	// Update vertex count and version for OUT files
 	fseek(Outfp_soil, 0L, SEEK_SET);
 	rewind(Outfp_soil);
-	fprintf(Outfp_soil, "# v%s\n", VERSION.c_str());
+	fprintf(Outfp_soil, "# %s\n", VERSION.c_str());
 	fprintf(Outfp_soil, "%20d\n", numVert_soil);
 
 	fseek(Outfp_root, 0L, SEEK_SET);
 	rewind(Outfp_root);
-	fprintf(Outfp_root, "# v%s\n", VERSION.c_str());
+	fprintf(Outfp_root, "# %s\n", VERSION.c_str());
 	fprintf(Outfp_root, "%20d\n", numVert_root);
 
 	// Clean up
