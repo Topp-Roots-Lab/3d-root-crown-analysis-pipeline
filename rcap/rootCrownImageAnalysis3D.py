@@ -114,6 +114,7 @@ def __find_filepath(name, path):
 	""""""
 	for root, dirs, files in os.walk(path):
 		if name in files:
+			logging.debug(os.path.join(root, name))
 			return os.path.join(root, name)
 	raise FileNotFoundError(name)
 
