@@ -67,7 +67,7 @@ def run(cmd, args, lock, position):
 
 	if args.progress:
 		with lock:
-			progress_bar = tqdm(total = slice_count, desc=text, position=position, leave=True, unit="image")
+			progress_bar = tqdm(total = slice_count, desc=text, position=position, leave=False, unit="image")
 
 	# Cast argument list to string for Popen to escape
 	adjusted_cmd = ' '.join(adjusted_cmd)
@@ -160,12 +160,10 @@ if __name__ == "__main__":
 		# Create overall progress bar
 		if args.progress:
 			progress_text = "Overall progress"
-			progress_bar_position = len(cmd_list)
 		else:
-			progress_text = f"Segmenting {os.path.dirname(args.path[0])}"
-			progress_bar_position = 0
+			progress_text = f"Processing {os.path.dirname(args.path[0])}"
 		if not args.verbose:
-			pbar = tqdm(total = len(cmd_list), position = progress_bar_position, desc=progress_text, leave=True, unit="volume")
+			pbar = tqdm(total = len(cmd_list), position = 0, desc=progress_text, leave=True, unit="volume")
 		def pbar_update(*response):
 			if not args.verbose:
 				pbar.update()
@@ -173,7 +171,7 @@ if __name__ == "__main__":
 			logging.error(args)
 
 		# For each slice in the volume...
-		for i, cmd in enumerate(cmd_list, start = 0):
+		for i, cmd in enumerate(cmd_list, start = 1):
 			# Run command as separate process
 			p.apply_async(run, args=(cmd, args, lock, i), callback=pbar_update, error_callback=subprocess_error_callback)
 		p.close()
