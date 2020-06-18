@@ -22,8 +22,9 @@ def parse_options():
 	parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
 	parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
 	parser.add_argument('-t', "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
-	parser.add_argument("-f", '--force', action="store_true", help="Force file creation. Overwrite any existing files.")
-	parser.add_argument("-n", '--dry-run', dest='dryrun', action="store_true", help="Perform a trial run. Do not create image files, but logs will be updated.")
+	parser.add_argument("-f", "--force", action="store_true", help="Force file creation. Overwrite any existing files.")
+	parser.add_argument("-n", "--dry-run", dest='dryrun', action="store_true", help="Perform a trial run. Do not create image files, but logs will be updated.")
+	parser.add_argument("--progress", action="store_true", help="Enables multiple progress bar, one for each volume during processing.")
 	parser.add_argument('--soil', action='store_true', help="Extract any soil during segmentation.")
 	parser.add_argument('-s', "--sampling", help="resolution parameter", default=2)
 	parser.add_argument("path", metavar='PATH', type=str, nargs=1, help='Input directory to process')
@@ -45,17 +46,29 @@ def parse_options():
 
 # Async function to call rootCrownSegmentation binary
 def run(cmd, args, lock, position):
-	logging.debug(f"Run command: '{' '.join(cmd)}'")
-
-	# Create an individual progress bar for volume
+	# Set up values for progress bar
 	volume_name = os.path.basename(os.path.normpath(cmd[2]))
 	text = f"Segmenting '{volume_name}'"
 	slice_count = round(len([ img for img in os.listdir(fp) if img.endswith('png')  ]) / args.sampling)
-	with lock:
-		progress_bar = tqdm(total = slice_count, desc=text, position=position)
 
+	# Adjust command so that spaces are escaped
+	# Requires that the input to Popen be a string instead of list
+	adjusted_cmd = []
+	for argument in cmd:
+		if not argument.isnumeric():
+			adjusted_cmd.append(f'"{argument}"')
+		else:
+			adjusted_cmd.append(argument)
+	logging.debug(f"Run command: '{' '.join(adjusted_cmd)}'")
+
+	if args.progress:
+		with lock:
+			progress_bar = tqdm(total = slice_count, desc=text, position=position, leave=True)
+
+	# Cast argument list to string for Popen to escape
+	adjusted_cmd = ' '.join(adjusted_cmd)
 	# Start processing
-	with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as p:
+	with subprocess.Popen(adjusted_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as p:
 		# Parse stdout from subprocess
 		complete = False
 		for line in iter(p.stdout.readline, b''):
@@ -64,8 +77,9 @@ def run(cmd, args, lock, position):
 			if line != '':
 				logging.debug(line.strip())
 				if volume_name in line and line.startswith('Write'):
-					with lock:
-						progress_bar.update()
+					if args.progress:
+						with lock:
+							progress_bar.update()
 				if "Exiting" in line or "Abort" in line:
 					complete = True
 
@@ -74,9 +88,10 @@ def run(cmd, args, lock, position):
 			logging.error(f"Error encountered. 'rootCrownSegmentation' returned {p.returncode}")
 
 		# Clean up progress bar for volume
-		with lock:
-			progress_bar.close()
-			progress_bar = None
+		if args.progress:
+			with lock:
+				progress_bar.close()
+				progress_bar = None
 
 if __name__ == "__main__":
 	args = parse_options()
@@ -139,7 +154,11 @@ if __name__ == "__main__":
 	with ThreadPool(args.threads) as p:
 		lock = threading.Lock()
 		# Create overall progress bar
-		pbar = tqdm(total = len(cmd_list), position = 0, desc=f"Overall progress")
+		if args.progress:
+			progress_text = "Overall progress"
+		else:
+			progress_text = f"Segmenting {os.path.dirname(args.path[0])}"
+		pbar = tqdm(total = len(cmd_list), position = len(cmd_list), desc=progress_text, leave=False)
 		def pbar_update(*args):
 			pbar.update()
 			pass
@@ -147,7 +166,7 @@ if __name__ == "__main__":
 			logging.error(args)
 
 		# For each slice in the volume...
-		for i, cmd in enumerate(cmd_list, start = 1):
+		for i, cmd in enumerate(cmd_list, start = 0):
 			# Run command as separate process
 			p.apply_async(run, args=(cmd, args, lock, i), callback=pbar_update, error_callback=subprocess_error_callback)
 		p.close()
