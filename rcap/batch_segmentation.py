@@ -156,8 +156,10 @@ if __name__ == "__main__":
 		# Create overall progress bar
 		if args.progress:
 			progress_text = "Overall progress"
+			progress_bar_position = len(cmd_list)
 		else:
 			progress_text = f"Segmenting {os.path.dirname(args.path[0])}"
+			progress_bar_position = 0
 		pbar = tqdm(total = len(cmd_list), position = len(cmd_list), desc=progress_text, leave=False)
 		def pbar_update(*args):
 			pbar.update()

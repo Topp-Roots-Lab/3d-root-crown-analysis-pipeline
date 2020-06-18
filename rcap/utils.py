@@ -21,7 +21,6 @@ def configure_logging(args, ifp = None):
 	# Set project-level logging
 	if ifp is not None:
 		logfile_basename = f"{dt.today().strftime('%Y-%m-%d_%H-%M-%S')}_{args.module_name}_{ifp}.log"
-		print(logfile_basename)
 	else:
 		logfile_basename = f"{dt.today().strftime('%Y-%m-%d_%H-%M-%S')}_{args.module_name}.log"
 	lfp = os.path.join(os.path.realpath(args.path[0]), logfile_basename)
