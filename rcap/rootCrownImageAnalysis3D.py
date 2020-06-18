@@ -126,7 +126,7 @@ def validate_dat_metadata(args):
 		# Find the corresponding RAW/DAT folder
 		for root, dirs, files in os.walk(fp):
 			for volume_directory_basename in dirs:
-				dat_filepath = __find_filepath(f"{volume_directory_basename}.dat", os.path.dirname(fp))
+				dat_filepath = __find_filepath(f"{volume_directory_basename}.dat", os.path.dirname(os.path.realpath(fp)))
 				logging.debug(f"Expected DAT filepath: '{dat_filepath}'")
 				dat_filepaths.append(dat_filepath)
 	logging.debug(f"Located DAT files: {dat_filepaths}")
