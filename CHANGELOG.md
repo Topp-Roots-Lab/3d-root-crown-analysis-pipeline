@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## v1.6.0 - 2020-06-15
+## v1.6.0 - 2020-06-18
 
 ### Added
 
@@ -10,18 +10,16 @@ All notable changes to this project will be documented in this file.
 - Additional logging for `rootCrownSegmentation` (handled by `batch_segmentation` module)
 - Utility module for centralizing logging configuration
 - Functionality for compressing VRML files to CTM using `meshlabserver`
-- Version of `rootCrownSegmentation` included in generated OBJ files
+- The version of `rootCrownSegmentation` included in generated OBJ files
 
 ### Changed
 
-- Migrated `rootCrownImageAnalysis3D` from Python 2 to 3
-- Removed `-i` flag support in favor of a single positional argument, except for `rootCrownImageAnalysis3D`
 - Replaced multiprocessing Pool with ThreadedPool to allow for simultaneously existing progress bars (`batch_segmentation`)
 - Logs are named to the nearest second and include the input folder as part of the file name
-- Updated version of `Skeleton` to v2.1.0-rc
-- Slice thickness is no longer required as input for the `rootCrownImageAnalysis3D` (see note 1)
-- Removed `.CSV` output file for slices flagged for incorrect segmentation (see note 2)
+- Updated version of `Skeleton` to v2.1.0
+- Removed `.CSV` output file for slices flagged for incorrect segmentation (see note 1)
 - Reduce default probability that a point is included in downsampled OBJ for the `qc_point_cloud` module
+- Refactored `rootCrownSegmentation.cpp` to use more descriptive variable names and explicit comments
 
 ### Fixed
 
@@ -29,11 +27,7 @@ All notable changes to this project will be documented in this file.
 - `qc_point_cloud` now will correctly process a data folder with exactly one volume (previously it would state that no volumes were present)
 
 ### Notes
-1. The slice thickness value, which is normally specified with the `-t` flag on `rootCrownImageAnalysis3D`, is now
-extracted from the `.DAT` associated with any specified volume. If the file cannot be located, then user input is 
-required. The `-t` flag will remain available, and if it is supplied, it will take precedence over any values pulled
-from a `.DAT` file.
-2. This was removed because it provides less information than the individual TXT
+1. This was removed because it provides less information than the individual TXT
 files that list the exact problematic slices.
 
 ## v1.5.0 - 2020-04-23
