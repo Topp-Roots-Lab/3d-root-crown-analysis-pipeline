@@ -23,7 +23,7 @@ def parse_options():
 	parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
 	parser.add_argument('-t', "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
 	parser.add_argument("-f", "--force", action="store_true", help="Force file creation. Overwrite any existing files.")
-	parser.add_argument("-n", "--dry-run", dest='dryrun', action="store_true", help="Perform a trial run. Do not create image files, but logs will be updated.")
+	parser.add_argument("-n", "--dry-run", dest='dryrun', action="store_true", help="*Not yet implemented.* Perform a trial run. Do not create image files, but logs will be updated.")
 	parser.add_argument("--progress", action="store_true", help="Enables multiple progress bar, one for each volume during processing.")
 	parser.add_argument('--soil', action='store_true', help="Extract any soil during segmentation.")
 	parser.add_argument('-s', "--sampling", help="resolution parameter", default=2)
@@ -41,6 +41,10 @@ def parse_options():
 
 	# Recode soil input to match the input of rootCrownSegmentation binary
 	args.soil = 1 if args.soil else 0
+
+	# Disable progress bars if verbose mode enabled
+	if args.verbose:
+		args.progress = False
 
 	return args
 
@@ -63,7 +67,7 @@ def run(cmd, args, lock, position):
 
 	if args.progress:
 		with lock:
-			progress_bar = tqdm(total = slice_count, desc=text, position=position, leave=True)
+			progress_bar = tqdm(total = slice_count, desc=text, position=position, leave=True, unit="image")
 
 	# Cast argument list to string for Popen to escape
 	adjusted_cmd = ' '.join(adjusted_cmd)
@@ -160,11 +164,12 @@ if __name__ == "__main__":
 		else:
 			progress_text = f"Segmenting {os.path.dirname(args.path[0])}"
 			progress_bar_position = 0
-		pbar = tqdm(total = len(cmd_list), position = progress_bar_position, desc=progress_text, leave=False)
-		def pbar_update(*args):
-			pbar.update()
-			pass
-		def subprocess_error_callback(*args):
+		if not args.verbose:
+			pbar = tqdm(total = len(cmd_list), position = progress_bar_position, desc=progress_text, leave=True, unit="volume")
+		def pbar_update(*response):
+			if not args.verbose:
+				pbar.update()
+		def subprocess_error_callback(*response):
 			logging.error(args)
 
 		# For each slice in the volume...
