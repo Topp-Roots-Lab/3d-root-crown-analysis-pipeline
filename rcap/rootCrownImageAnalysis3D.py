@@ -192,10 +192,12 @@ if __name__ == "__main__":
 					if not (dat["x_thickness"] == dat["y_thickness"] == dat["z_thickness"]):
 						logging.warning(f"Slice thickness for '{subfolder}' are not the same. {dat['x_thickness']=}, {dat['y_thickness']=}, {dat['z_thickness']=}")
 					args.thickness = round(float(dat["z_thickness"]),3)
+				logging.debug(f"Slice thickness set to '{args.thickness}'")
 
 				# Account for downsampling during preprocessing
 				# If half the images were used, double the thickness per 'slice'
 				scale = float(args.sampling)*float(args.thickness)
+				logging.debug(f"Scale set to '{scale}'")
 				##Changed (round)(200/scale) because in Python2 round will produce a float - (ex. 952.0) and now makes integer 952
 				# Calculate the number of expected images
 				depth = int((round)(200/scale))
