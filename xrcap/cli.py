@@ -1,12 +1,14 @@
 """Console script for xrcap."""
 import argparse
 import logging
+import os
 import sys
+import time
 from importlib.metadata import version
 from multiprocessing import cpu_count
-import time
 
-from xrcap import batch_segmentation, batch_skeleton, log, qualitycontrol
+from xrcap import (batch_segmentation, batch_skeleton, collate, log,
+                   qualitycontrol)
 
 __version__ = version('xrcap')
 
@@ -85,7 +87,8 @@ def skeleton():
     return returncode
 
 def qc_binary_images():
-    parser = argparse.ArgumentParser(description='Check tresholded images for pure white slices. Creates CSV of volumes that have more than a given percentage of white pixels.',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    description='Check tresholded images for pure white slices. Creates CSV of volumes that have more than a given percentage of white pixels.'
+    parser = argparse.ArgumentParser(description=description,formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
     parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
     parser.add_argument("-c", "--cutoff", type=float, default=0.8, help="The minimum percentage of white pixels for a given slice for it to be flagged as invalid.")
@@ -102,7 +105,8 @@ def qc_binary_images():
     return returncode
 
 def qc_point_clouds():
-    parser = argparse.ArgumentParser(description='Create a downsampled version of point cloud data (.obj) based on a random selection of which points are kept.',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    description='Create a downsampled version of point cloud data (.obj) based on a random selection of which points are kept.'
+    parser = argparse.ArgumentParser(description=description,formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
     parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
     parser.add_argument('-t', "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
@@ -126,6 +130,37 @@ def qc_point_clouds():
     returncode = qualitycontrol.point_clouds(args)
     logging.info(f'Total execution time: {time.perf_counter() - start_time} seconds')
     return returncode
+
+def collate_output():
+    description='Combine many results files into one.'
+    parser = argparse.ArgumentParser(description=description,formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
+    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
+    parser.add_argument("-f", "--force", action="store_true", help="Force file creation. Overwrite any existing files.")
+    parser.add_argument("--traits", action="store_true", help="Combine any traits.csv into one file.")
+    parser.add_argument("--features", action="store_true", help="Combine any features.tsv into one file.")
+    parser.add_argument("-o", dest="ofp", help="Specify output filepath.")
+    parser.add_argument("path", metavar='PATH', type=str, nargs='+', help='Input directory to process. Must contain folder with thresholded images.')
+    args = parser.parse_args()
+
+    args.module_name = 'collate'
+    log.configure(args)
+
+    # If not action is specified, nothing can be done
+    if not args.traits and not args.features:
+        logging.error("No action was specified. Please enable either '--traits' or '--features'.")
+        return 1
+
+    # Get the extensionless filepath for output file
+    if args.ofp is not None:
+        args.ofp = os.path.splitext(args.ofp)[0]
+
+    start_time = time.perf_counter()
+    if args.traits:
+        collate.process(args, type='traits')
+    if args.features:
+        collate.process(args, type='features')
+    logging.info(f'Total execution time: {time.perf_counter() - start_time} seconds')
 
 if __name__ == "__main__":
     sys.exit(main())  # pragma: no cover

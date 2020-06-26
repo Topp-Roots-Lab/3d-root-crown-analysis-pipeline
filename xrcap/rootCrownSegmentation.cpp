@@ -126,7 +126,7 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 		// AND
 		// The number of white pixels on the current slice is 50 times more than the previous slice
 		// TODO(tparker): Check why 70% and 50x were selected
-		if (n > 0.5 * fn.size() && count_cur > 50 * count_prev)
+		if (n > 0.7 * fn.size() && count_cur > 50 * count_prev)
 		{
 			count_cur = 0;
 			memset(binary_image.data, 0, size);

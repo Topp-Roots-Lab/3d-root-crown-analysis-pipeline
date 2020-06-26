@@ -5,7 +5,7 @@ import os
 from datetime import datetime as dt
 from importlib.metadata import version
 
-__version__ = version('rawtools')
+__version__ = version('xrcap')
 
 
 def configure(args):

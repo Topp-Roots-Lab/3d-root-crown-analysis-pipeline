@@ -102,7 +102,7 @@ def main(args):
 	lock = threading.Lock()
 	with ThreadPool(args.threads) as p:
 		# For each slice in the volume...
-		binary_filepath = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'bin', 'Skeleton')
+		binary_filepath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'lib', 'Skeleton')
 		for fp in args.path:
 			# Read object files, and then spawn a child process per volume
 			ofp = os.path.join(os.path.dirname(fp), "features.tsv")

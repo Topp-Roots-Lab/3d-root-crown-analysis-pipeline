@@ -33,6 +33,7 @@ setup(
             'batch-skeleton=xrcap.cli:skeleton',
             'qc-point-clouds=xrcap.cli:qc_point_clouds',
             'qc-binary-images=xrcap.cli:qc_binary_images',
+            'xrcap-collate-results=xrcap.cli:collate_output',
         ],
     },
     install_requires=requirements,
