@@ -1,45 +1,17 @@
 #!/usr/bin/python3.8
 # -*- coding: utf-8 -*-
-import argparse
 import logging
 import os
+import re
 import shutil
 import subprocess
 import threading
-from datetime import datetime as dt
 from multiprocessing import Pool, cpu_count
 from multiprocessing.pool import ThreadPool
 from pprint import pformat
-from time import time
-import re
 
 from tqdm import tqdm
 
-from __init__ import __version__
-from utils import configure_logging
-
-
-def parse_options():
-	parser = argparse.ArgumentParser(description='Root Crowns Feature Extraction',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-	parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity.")
-	parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
-	parser.add_argument('-t', "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
-	parser.add_argument("-f", '--force', action="store_true", help="Force file creation. Overwrite any existing files.")
-	parser.add_argument("-n", '--dry-run', dest='dryrun', action="store_true", help="Perform a trial run. Do not create image files, but logs will be updated.")
-	parser.add_argument('-s', "--scale", help="The scale parameter using for skeleton.", default=2.25)
-	parser.add_argument("path", metavar='PATH', type=str, nargs=1, help='Input directory to process')
-	args = parser.parse_args()
-
-	# Make sure user does not request more CPUs can available
-	if args.threads > cpu_count():
-		args.threads = cpu_count()
-
-	args.module_name = f"{os.path.splitext(os.path.basename(__file__))[0]}"
-	configure_logging(args, ifp=os.path.basename(os.path.realpath(args.path[0])))
-	if args.dryrun:
-		logging.info(f"DRY-RUN MODE ENABLED")
-
-	return args
 
 def process(ifp, ofp, scale, cmd, lock):
 	cmd = [cmd, ifp, ofp, str(scale)]
@@ -91,9 +63,7 @@ def wrl2ctm(meshlabserver, ifp):
 		logging.error(f"Error encountered. 'Meshlab' returned {p.returncode}")
 
 
-if __name__ == "__main__":
-	args = parse_options()
-	start_time = time()
+def main(args):
 
 	# Clean up input folders
 	args.path = [ os.path.realpath(fp) for fp in args.path ]
@@ -163,5 +133,3 @@ if __name__ == "__main__":
 		
 		pbar.close()
 		pbar = None
-
-	logging.debug(f'Total execution time: {time() - start_time} seconds')

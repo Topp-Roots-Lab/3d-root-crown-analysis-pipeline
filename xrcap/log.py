@@ -1,14 +1,15 @@
-#!/usr/bin/python3.8
 # -*- coding: utf-8 -*-
-import argparse
+"""Logging module"""
 import logging
 import os
 from datetime import datetime as dt
+from importlib.metadata import version
 
-from __init__ import __version__
+__version__ = version('rawtools')
 
 
-def configure_logging(args, ifp = None):
+def configure(args):
+	"""Set up log files and associated handlers"""
 	# Configure logging, stderr and file logs
 	logging_level = logging.INFO
 	if args.verbose:
@@ -19,17 +20,18 @@ def configure_logging(args, ifp = None):
 	rootLogger.setLevel(logging.DEBUG)
 
 	# Set project-level logging
-	if ifp is not None:
-		logfile_basename = f"{dt.today().strftime('%Y-%m-%d_%H-%M-%S')}_{args.module_name}_{ifp}.log"
-	else:
+	if args.module_name is not None:
 		logfile_basename = f"{dt.today().strftime('%Y-%m-%d_%H-%M-%S')}_{args.module_name}.log"
-	lfp = os.path.join(os.path.realpath(args.path[0]), logfile_basename)
+	lfp = os.path.join(os.path.realpath(os.path.dirname(args.path[0])), logfile_basename) # base log file path
 	fileHandler = logging.FileHandler(lfp)
 	fileHandler.setFormatter(logFormatter)
 	fileHandler.setLevel(logging.DEBUG) # always show debug statements in log file
 	rootLogger.addHandler(fileHandler)
 
-	slfp = os.path.join('/', 'var', 'log', '3drcap', args.module_name, logfile_basename)
+	sdfp = os.path.join('/', 'var', 'log', 'rawtools', args.module_name) # system directory file path
+	if not os.path.exists(sdfp):
+		os.makedirs(sdfp)
+	slfp = os.path.join(sdfp, logfile_basename) # system log file path
 	syslogFileHandler = logging.FileHandler(slfp)
 	syslogFileHandler.setFormatter(logFormatter)
 	syslogFileHandler.setLevel(logging.DEBUG) # always show debug statements in log file
