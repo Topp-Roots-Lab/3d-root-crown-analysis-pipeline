@@ -94,31 +94,46 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 
 		threshold_value = threshold(grayscale_image, binary_image, 0, 255, THRESH_TRIANGLE);
 
-		// // NOTE(tparker): Check that the threshold value has not been picked from
-		// // the darker side of the histogram, as it's very unlikely that a root
-		// // system would be less dense than the air or medium it was scanned in
-		// // As a workaround, if the threshold value is picked from the darker side,
-		// // then replace any values in the image that are darker than the median
-		// // value with the median
-		// int median = medianMat(grayscale_image);
+		// NOTE(tparker): Check that the threshold value has not been picked from
+		// the darker side of the histogram, as it's very unlikely that a root
+		// system would be less dense than the air or medium it was scanned in
+		// As a workaround, if the threshold value is picked from the darker side,
+		// then replace any values in the image that are darker than the median
+		// value with the median
+		int median = medianMat(grayscale_image);
+		double min, max;
+		cv::Point minLoc, maxLoc;
+		cv::minMaxLoc(grayscale_image, &min, &max, &minLoc, &maxLoc);
 
-		// if (threshold_value <= median)
-		// {
-		// 	for (int r = 0; r < grayscale_image.rows; r++)
-		// 	{
-		// 		for (int c = 0; c < grayscale_image.cols; c++)
-		// 		{
-		// 			if (grayscale_image.at<uint8_t>(r, c) < (uint8_t)median && (uint8_t)grayscale_image.at<uint8_t>(r, c) != (uint8_t)0)
-		// 			{
-		// 				grayscale_image.at<uint8_t>(r, c) = (uint8_t)median;
-		// 			}
-		// 		}
-		// 	}
-		// 	// Redo the threshold with the modified image
-		// 	threshold_value = threshold(grayscale_image, binary_image, median, 255, THRESH_TRIANGLE);
-		// }
+		// Narrow histogram check
+		// If the distance between the median and minimum is greater than the maximum and median by some factor,
+		// then the histogram is likely narrow
+		// Also, if the distance between the maximum and minimum is less than some constant value, then it is likely
+		// a narrow histogram as well
+		if ((median - min) > (2 * (max - median)) || (max - min) < 25) {
+			count_cur = 0;
+			memset(binary_image.data, 0, size);
+		}
 
-		// Compare the white pixel counts between the current slice and previous slice
+		// If the histogram is narrow, but a threshold value could be selected for root system,
+		// then try to recover an appropriate threshold value
+		if (threshold_value <= median)
+		{
+			for (int r = 0; r < grayscale_image.rows; r++)
+			{
+				for (int c = 0; c < grayscale_image.cols; c++)
+				{
+					if (grayscale_image.at<uint8_t>(r, c) < (uint8_t)median && (uint8_t)grayscale_image.at<uint8_t>(r, c) != (uint8_t)0)
+					{
+						grayscale_image.at<uint8_t>(r, c) = (uint8_t)median;
+					}
+				}
+			}
+			// Redo the threshold with the modified image
+			threshold_value = threshold(grayscale_image, binary_image, median, 255, THRESH_TRIANGLE);
+		}
+
+			// Compare the white pixel counts between the current slice and previous slice
 		count_cur = countNonZero(binary_image);
 
 		// Reset the thresholded image to pure black when...
