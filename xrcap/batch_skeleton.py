@@ -63,7 +63,7 @@ def wrl2ctm(meshlabserver, ifp):
             return
         # Create a dummy screen for meshlabserver
         else:
-            cmd = [xvfb, "-a", "-s", "-screen 0 800x600x24", meshlabserver]
+            cmd = [xvfb, "-a", "-s", "-screen 0 800x600x24"] + cmd
     
     logging.debug(' '.join(cmd))
 
