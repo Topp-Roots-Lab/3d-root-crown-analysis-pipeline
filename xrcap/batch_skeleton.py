@@ -57,8 +57,8 @@ def wrl2ctm(meshlabserver, ifp):
     # Meshlabserver does not support headless environments by default of as June 2020
     cmd = [meshlabserver, '-i', ifp, '-o', ofp]
     if "DISPLAY" not in os.environ:
-        xvfb = shutil.which("xvfb-run"):
-        if not xvfb
+        xvfb = shutil.which("xvfb-run")
+        if not xvfb:
             logging.error(f"Display not detected. Unable to find 'xvfb-run' as workaround. Cannot convert from WRL to CTM.")
             return
         # Create a dummy screen for meshlabserver
