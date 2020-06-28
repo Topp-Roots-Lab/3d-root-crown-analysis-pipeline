@@ -148,7 +148,14 @@ If you encounter an issues, please submit a GitHub issue: https://github.com/Top
 
 ## Additional Information
 
-None at this time.
+- Optional dependencies
+* xvfb
+* meshlab
+* meshlabserver
+
+```bash
+dnf install xorg-x11-server-Xvfb
+```
 
 ### Planned Development
 
