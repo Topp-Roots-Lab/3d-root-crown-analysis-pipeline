@@ -10,7 +10,7 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = [ 'rawtools', 'tqdm', 'pandas', 'numpy', 'opencv-python', 'scikit-learn', 'scikit-image', 'scipy' ]
+requirements = [ 'rawtools', 'tqdm', 'pandas', 'numpy', 'opencv-python', 'scikit-learn', 'scikit-image', 'scipy', 'xvfbwrapper' ]
 
 setup_requirements = [ ]
 

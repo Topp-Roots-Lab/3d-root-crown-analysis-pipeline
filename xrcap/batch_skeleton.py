@@ -12,6 +12,8 @@ from pprint import pformat
 
 from tqdm import tqdm
 
+from xvfbwrapper import Xvfb
+
 
 def process(ifp, ofp, scale, cmd, lock):
     cmd = [cmd, ifp, ofp, str(scale)]
@@ -56,18 +58,13 @@ def wrl2ctm(meshlabserver, ifp):
     # Check if there is a display to determine if working in a headless environment
     # Meshlabserver does not support headless environments by default of as June 2020
     cmd = [meshlabserver, '-i', ifp, '-o', ofp]
-    if "DISPLAY" not in os.environ:
-        xvfb = shutil.which("xvfb-run")
-        if not xvfb:
-            logging.error(f"Display not detected. Unable to find 'xvfb-run' as workaround. Cannot convert from WRL to CTM.")
-            return
-        # Create a dummy screen for meshlabserver
-        else:
-            cmd = [xvfb, "-a", "-s", '"-screen 0 800x600x24"'] + cmd
-    
     logging.debug(' '.join(cmd))
-
-    p = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    if "DISPLAY" not in os.environ:
+        with Xvfb() as xvfb:
+            p = subprocess.run(cmd, capture_output=True, text=True)
+    else:
+        p = subprocess.run(cmd, capture_output=True, text=True)
+    
     logging.debug(p.stdout)
 
     if p.returncode is not None and p.returncode > 0:
@@ -117,7 +114,7 @@ def main(args):
         for fp in args.path:
             # Read object files, and then spawn a child process per volume
             ofp = os.path.join(os.path.dirname(fp), "features.tsv")
-            p.apply_async(process, args=(fp, ofp, args.scale, binary_filepath, lock), callback=pbar_update, error_callback=subprocess_error_callback)
+            # p.apply_async(process, args=(fp, ofp, args.scale, binary_filepath, lock), callback=pbar_update, error_callback=subprocess_error_callback)
         p.close()
         p.join()
     pbar.close()
