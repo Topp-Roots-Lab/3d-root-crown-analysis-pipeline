@@ -116,8 +116,8 @@ def main(args):
 
     # Process data
     # Dedicate N CPUs for processing
-    lock = threading.Lock()
     with ThreadPool(args.threads) as p:
+        lock = threading.Lock()
         # For each slice in the volume...
         binary_filepath = shutil.which('Skeleton')
         if binary_filepath is None:
@@ -146,7 +146,7 @@ def main(args):
         p.close()
         p.join()
     
-    if not args.verbose:
+    if not args.verbose and pbar is not None:
         pbar.close()
 
     # Convert produced WRL to CTM
@@ -169,4 +169,3 @@ def main(args):
             p.join()
         
         pbar.close()
-        pbar = None
