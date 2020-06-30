@@ -60,7 +60,7 @@ def process(args, ifp, ofp, scale, cmd, lock, position):
                                 logging.info(f"{readline_count=}")
                                 volume_load_pbar.update(n_lines_read)
                 if "Exiting" in line or "Abort" in line:
-                    logging.info(f"Completed {volume_name}")
+                    logging.debug(f"Done processing '{volume_name}'")
                     complete = True
 
         if p.returncode is not None and p.returncode > 0:
