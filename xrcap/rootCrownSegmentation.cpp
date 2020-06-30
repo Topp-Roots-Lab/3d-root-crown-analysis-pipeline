@@ -117,23 +117,23 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 			blankSliceFlag = true;
 		}
 
-		// If the histogram is narrow, but a threshold value could be selected for root system,
-		// then try to recover an appropriate threshold value
-		if (!blankSliceFlag && threshold_value <= median)
-		{
-			for (int r = 0; r < grayscale_image.rows; r++)
-			{
-				for (int c = 0; c < grayscale_image.cols; c++)
-				{
-					if (grayscale_image.at<uint8_t>(r, c) < (uint8_t)median && (uint8_t)grayscale_image.at<uint8_t>(r, c) != (uint8_t)0)
-					{
-						grayscale_image.at<uint8_t>(r, c) = (uint8_t)median;
-					}
-				}
-			}
-			// Redo the threshold with the modified image
-			threshold_value = threshold(grayscale_image, binary_image, median, 255, THRESH_TRIANGLE);
-		}
+		// // If the histogram is narrow, but a threshold value could be selected for root system,
+		// // then try to recover an appropriate threshold value
+		// if (!blankSliceFlag && threshold_value <= median)
+		// {
+		// 	for (int r = 0; r < grayscale_image.rows; r++)
+		// 	{
+		// 		for (int c = 0; c < grayscale_image.cols; c++)
+		// 		{
+		// 			if (grayscale_image.at<uint8_t>(r, c) < (uint8_t)median && (uint8_t)grayscale_image.at<uint8_t>(r, c) != (uint8_t)0)
+		// 			{
+		// 				grayscale_image.at<uint8_t>(r, c) = (uint8_t)median;
+		// 			}
+		// 		}
+		// 	}
+		// 	// Redo the threshold with the modified image
+		// 	threshold_value = threshold(grayscale_image, binary_image, median, 255, THRESH_TRIANGLE);
+		// }
 
 		// Get the number of white pixels for the current slice
 		count_cur = countNonZero(binary_image);
