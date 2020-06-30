@@ -59,8 +59,9 @@ def process(args, ifp, ofp, scale, cmd, lock, position):
                                 logging.info(f"{n_lines_read=}")
                                 logging.info(f"{readline_count=}")
                                 volume_load_pbar.update(n_lines_read)
-                        if "Exiting" in line or "Abort" in line:
-                            complete = True
+                if "Exiting" in line or "Abort" in line:
+                    logging.info(f"Completed {volume_name}")
+                    complete = True
 
         if p.returncode is not None and p.returncode > 0:
             logging.error(f"Error encountered. 'Skeleton' returned {p.returncode}")
@@ -133,7 +134,8 @@ def main(args):
             pbar = tqdm(total = len(args.path), position = 0, desc=progress_text, leave=True, unit="volume")
 
         def pbar_update(*response):
-            pbar.update()
+            if not args.verbose:
+                pbar.update()
 
         def subprocess_error_callback(*response):
             logging.error(args)
