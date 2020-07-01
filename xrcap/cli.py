@@ -7,7 +7,7 @@ import time
 from importlib.metadata import version
 from multiprocessing import cpu_count
 
-from xrcap import (batch_segmentation, batch_skeleton, collate, log,
+from xrcap import (batch_segmentation, batch_skeleton, rootCrownImageAnalysis3D, collate, log,
                    qualitycontrol)
 
 __version__ = version('xrcap')
@@ -88,6 +88,33 @@ def skeleton():
 
     start_time = time.perf_counter()
     returncode = batch_skeleton.main(args)
+    logging.info(f'Total execution time: {time.perf_counter() - start_time} seconds')
+    return returncode
+
+def image_analysis():
+    parser = argparse.ArgumentParser(description='Root Crown Image Analysis', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
+    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
+    parser.add_argument("-f", '--force', action="store_true", help="(Not yet implemented) Force file creation. Overwrite any existing files.")
+    parser.add_argument('-s', "--sampling", default=2, help="resolution parameter")
+    parser.add_argument('-t', "--thickness", type=float, help="slice thickness in mm")
+    parser.add_argument("--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
+    parser.add_argument("--biomass", action="store_true", help="Enable calculation for biomass")
+    parser.add_argument("--convexhull", action="store_true", help="Enable calculation for convex hull")
+    parser.add_argument("path", metavar='input_folder', type=str, nargs=1, help='Input directory to process')
+    args = parser.parse_args()
+
+    # Make sure user does not request more CPUs can available
+    if args.threads > cpu_count():
+        args.threads = cpu_count()
+
+    args.path = list(set(args.path)) # remove any duplicates
+
+    args.module_name = 'rootCrownImageAnalysis3D'
+    log.configure(args)
+
+    start_time = time.perf_counter()
+    returncode = rootCrownImageAnalysis3D.main(args)
     logging.info(f'Total execution time: {time.perf_counter() - start_time} seconds')
     return returncode
 

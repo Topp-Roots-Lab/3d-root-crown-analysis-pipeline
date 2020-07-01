@@ -34,6 +34,7 @@ setup(
             'qc-point-clouds=xrcap.cli:qc_point_clouds',
             'qc-binary-images=xrcap.cli:qc_binary_images',
             'xrcap-collate-results=xrcap.cli:collate_output',
+            'rootCrownImageAnalysis3D=xrcap.cli:image_analysis'
         ],
     },
     install_requires=requirements,
