@@ -163,8 +163,11 @@ def main(args):
 
         field.extend(['FileName'])
         field.extend(['Pipeline_version'])
+        field.extend(['Slicethickness'])
         field.extend(['Elongation', 'Flatness', 'Football']) # Mao's traits
 
+        # Biomass and convex hull for the volume take a substantial amount of processing time
+        # Therefore, they must be explicitly enabled for them to be processed
         if args.biomass:
             field.extend(['Biomass_vhist{}'.format(i) for i in range(1, 21)])
         if args.convexhull:
@@ -191,7 +194,6 @@ def main(args):
         for root, dirs, files in list_dirs:
             for subfolder in dirs:
                 logging.debug(f"Processing {subfolder}")
-                logging.debug(f"Start new volume: reset local variables for {subfolder}")
 
                 # When not slice thickness is provided, try to extract it from .DAT
                 if args.thickness is None:
@@ -226,6 +228,10 @@ def main(args):
 
                 traits = []
                 for s_root, s_dirs, s_files in os.walk(os.path.join(original_folder, subfolder)):
+                    debug_fp = os.path.join(original_folder, f"{subfolder}_debug")
+                    # Get initial conditions and sizes from first image found
+                    img = cv.imread(os.path.join(original_folder, subfolder, s_files[0]), cv.IMREAD_GRAYSCALE)
+
                     # Sort any binary images found
                     s_files.sort(key=lambda x: (-x.count('/'), x), reverse = False)
                     z = 1
@@ -235,18 +241,13 @@ def main(args):
                     num_ch_hist = []
                     solidity = []
 
-                    debug_fp = os.path.join(original_folder, f"{subfolder}_debug")
-
-                    # Get initial conditions and sizes from first image found
-                    img = cv.imread(os.path.join(original_folder, subfolder, s_files[0]), cv.IMREAD_GRAYSCALE)
-                    bw_S1 = np.zeros((img.shape[1], 1)) # silhouette            # side projection (binary - side A)
+                    bw_S1 = np.zeros((img.shape[1], 1))                         # side projection (binary - side A)
                     bw_S2 = np.zeros((img.shape[0], 1))                         # side projection (binary - side B)
                     im_S1 = np.zeros((img.shape[1], 1), dtype = np.uint16)      # side projection (grayscale - side A)
                     im_S2 = np.zeros((img.shape[0], 1), dtype = np.uint16)      # side projection (grayscale - side B)
                     # NOTE(tparker): Have to cast to uint8 after migration to Python3.8. Default dtype is float64.
                     bw_T = (img/255).astype('uint8')                            # top-down projection (binary)
                     im_T = np.zeros(img.shape, dtype = np.uint16)               # top-down projection (grayscale - additive)
-                    logging.debug(im_T)
                     # for img_name in s_files:
                     # I.e., For each binary image...
                     for img_name in tqdm(s_files, desc=f"Processing '{subfolder}'"):
@@ -330,6 +331,7 @@ def main(args):
 
                     traits.extend([subfolder])
                     traits.extend([__version__])
+                    traits.extend([args.thickness])
                     traits.extend([elong, flat, football])
                     if args.biomass:
                         traits.extend(biomass_hist)
