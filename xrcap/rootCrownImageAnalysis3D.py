@@ -72,7 +72,6 @@ def image2Points(img, sliceID = 0):
 
 def calDensity(img, rangeN):
     """"""
-    logging.debug(f"{rangeN=}")
     img_scale = img*255.0/rangeN
     nZeroVal =  img_scale[np.nonzero(img_scale)]
     hist, bin_edges = np.histogram(nZeroVal, bins = [0, 1, 5, 10, 20, 30, 255], density = True)
@@ -188,10 +187,11 @@ def main(args):
             out_file = open(out_filename, "a+")
 
 
-        # For each subdirectory in the binary images folder...
+        # For each subdirectory in the binary images folder... (i.e., for each volume...)
         for root, dirs, files in list_dirs:
             for subfolder in dirs:
                 logging.debug(f"Processing {subfolder}")
+                logging.debug(f"Start new volume: reset local variables for {subfolder}")
 
                 # When not slice thickness is provided, try to extract it from .DAT
                 if args.thickness is None:
@@ -235,15 +235,18 @@ def main(args):
                     num_ch_hist = []
                     solidity = []
 
+                    debug_fp = os.path.join(original_folder, f"{subfolder}_debug")
+
                     # Get initial conditions and sizes from first image found
                     img = cv.imread(os.path.join(original_folder, subfolder, s_files[0]), cv.IMREAD_GRAYSCALE)
-                    bw_S1 = np.empty((img.shape[1], 1)) # silhouette            # side projection (binary - side A)
-                    bw_S2 = np.empty((img.shape[0], 1))                         # side projection (binary - side B)
-                    im_S1 = np.empty((img.shape[1], 1), dtype = np.uint16)      # side projection (grayscale - side A)
-                    im_S2 = np.empty((img.shape[0], 1), dtype = np.uint16)      # side projection (grayscale - side B)
+                    bw_S1 = np.zeros((img.shape[1], 1)) # silhouette            # side projection (binary - side A)
+                    bw_S2 = np.zeros((img.shape[0], 1))                         # side projection (binary - side B)
+                    im_S1 = np.zeros((img.shape[1], 1), dtype = np.uint16)      # side projection (grayscale - side A)
+                    im_S2 = np.zeros((img.shape[0], 1), dtype = np.uint16)      # side projection (grayscale - side B)
                     # NOTE(tparker): Have to cast to uint8 after migration to Python3.8. Default dtype is float64.
                     bw_T = (img/255).astype('uint8')                            # top-down projection (binary)
-                    im_T = np.empty(img.shape, dtype = np.uint16)               # top-down projection (grayscale - additive)
+                    im_T = np.zeros(img.shape, dtype = np.uint16)               # top-down projection (grayscale - additive)
+                    logging.debug(im_T)
                     # for img_name in s_files:
                     # I.e., For each binary image...
                     for img_name in tqdm(s_files, desc=f"Processing '{subfolder}'"):
@@ -273,8 +276,10 @@ def main(args):
                             im_S2 = np.append(im_S2, np.sum(img, axis = 1, dtype = np.uint16)[:, None], axis = 1)
                             bw_T = cv.bitwise_or(bw_T, img)
                             im_T += img
+
                             z += 1
 
+                    cv.imwrite(os.path.join(os.path.dirname(debug_fp), f"{subfolder}__im_T.png"), im_T)
 
                     # Calculating the biomass and conven hull for a volume is computational expensive (time)
                     # Therefore, only perform the calculations if enabled
