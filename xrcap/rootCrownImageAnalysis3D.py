@@ -229,7 +229,6 @@ def main(args):
 
                 traits = []
                 for s_root, s_dirs, s_files in os.walk(os.path.join(original_folder, subfolder)):
-                    debug_fp = os.path.join(original_folder, f"{subfolder}_debug")
                     # Get initial conditions and sizes from first image found
                     img = cv.imread(os.path.join(original_folder, subfolder, s_files[0]), cv.IMREAD_GRAYSCALE)
                     img_files = [ f for f in s_files if subfolder in f and f.endswith('.png') ]
@@ -305,8 +304,6 @@ def main(args):
                     # Resize all_pts to the minimum space required
                     all_pts.resize((c_all_pts, 3))
                     all_pts_ch.resize((c_all_pts_ch, 3))
-
-                    cv.imwrite(os.path.join(os.path.dirname(debug_fp), f"{subfolder}__im_T.png"), im_T)
 
                     # Calculating the biomass and convex hull for a volume is computationally expensive (time)
                     # Therefore, only perform the calculations if enabled
