@@ -20,6 +20,7 @@ All notable changes to this project will be documented in this file.
 - Removed `.CSV` output file for slices flagged for incorrect segmentation (see note 1)
 - Reduce default probability that a point is included in downsampled OBJ for the `qc_point_cloud` module
 - Refactored `rootCrownSegmentation.cpp` to use more descriptive variable names and explicit comments
+- Implemented additional checks during segmentations to prevent slices of air from being segmented as root system
 
 ### Fixed
 
