@@ -2,21 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-## v1.6.0 - 2020-06-18
+## v1.6.0 - 2020-07-06
 
 ### Added
 
 - Redundant logging to `/var/log/3drcap` for all modules
-- Additional logging for `rootCrownSegmentation` (handled by `batch_segmentation` module)
+- Logging for `rootCrownSegmentation` (handled by `batch_segmentation` module)
 - Utility module for centralizing logging configuration
-- Functionality for compressing VRML files to CTM using `meshlabserver`
+- Functionality for compressing VRML files to CTM using `meshlabserver` with xvfb wrapper
 - The version of `rootCrownSegmentation` included in generated OBJ files
 
 ### Changed
 
 - Replaced multiprocessing Pool with ThreadedPool to allow for simultaneously existing progress bars (`batch_segmentation`)
-- Logs are named to the nearest second and include the input folder as part of the file name
-- Updated version of `Skeleton` to v2.1.0
+- Logs are named to the nearest second and include the module in the filename
+- Updated log handling to match `Skeleton` v2.1.1
 - Removed `.CSV` output file for slices flagged for incorrect segmentation (see note 1)
 - Reduce default probability that a point is included in downsampled OBJ for the `qc_point_cloud` module
 - Refactored `rootCrownSegmentation.cpp` to use more descriptive variable names and explicit comments
@@ -25,6 +25,8 @@ All notable changes to this project will be documented in this file.
 
 - Typos in comments and documentation
 - `qc_point_cloud` now will correctly process a data folder with exactly one volume (previously it would state that no volumes were present)
+- Removed a dummy point for the collection of all points and all points in the convex hull of the volume
+- Removed dummy values from initialized images for density_T calculations
 
 ### Notes
 1. This was removed because it provides less information than the individual TXT
