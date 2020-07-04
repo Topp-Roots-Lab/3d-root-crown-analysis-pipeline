@@ -36,10 +36,10 @@ def image2Points(img, sliceID = 0):
 
     Example image (slice #26):
     img = [[0, 0, 1, 0, 0],
-           [0, 1, 1, 1, 0],
-           [1, 1, 0, 0, 1],
-           [0, 1, 1, 1, 0],
-           [0, 0, 1, 0, 0]]
+             [0, 1, 1, 1, 0],
+             [1, 1, 0, 0, 1],
+             [0, 1, 1, 1, 0],
+             [0, 0, 1, 0, 0]]
     img = np.array(img)
 
     An image like this would return the following structure for its indicies array and point count:
@@ -82,7 +82,7 @@ def calFractalDim(img):
     def boxcount(img, k):
         S = np.add.reduceat(
             np.add.reduceat(img, np.arange(0, img.shape[0], k), axis=0),
-                               np.arange(0, img.shape[1], k), axis=1)
+                                 np.arange(0, img.shape[1], k), axis=1)
         return np.count_nonzero(S)
 
     p = min(img.shape)
@@ -163,7 +163,7 @@ def main(args):
 
         field.extend(['FileName'])
         field.extend(['Pipeline_version'])
-        field.extend(['Slicethickness'])
+        field.extend(['Scale'])
         field.extend(['Elongation', 'Flatness', 'Football']) # Mao's traits
 
         # Biomass and convex hull for the volume take a substantial amount of processing time
@@ -209,13 +209,14 @@ def main(args):
                     logging.debug(f"Loaded metadata from DAT: {metadata}")
                     if not (metadata["x_thickness"] == metadata["y_thickness"] == metadata["z_thickness"]):
                         logging.warning(f"Slice thickness for '{subfolder}' are not the same. {metadata['x_thickness']=}, {metadata['y_thickness']=}, {metadata['z_thickness']=}")
-                    args.thickness = round(float(metadata["z_thickness"]),3)
-                logging.debug(f"Slice thickness set to '{args.thickness}'")
-
+                    thickness = round(float(metadata["z_thickness"]),3)
+                else:
+                    thickness = args.thickness
                 logging.debug(args)
+                logging.debug(f"{thickness=}")
                 # Account for downsampling during preprocessing
                 # If half the images were used, double the thickness per 'slice'
-                scale = float(args.sampling)*float(args.thickness)
+                scale = float(args.sampling)*float(thickness)
                 logging.debug(f"Scale set to '{scale}'")
                 ##Changed (round)(200/scale) because in Python2 round will produce a float - (ex. 952.0) and now makes integer 952
                 # Calculate the number of expected images
@@ -228,15 +229,21 @@ def main(args):
 
                 traits = []
                 for s_root, s_dirs, s_files in os.walk(os.path.join(original_folder, subfolder)):
-                    debug_fp = os.path.join(original_folder, f"{subfolder}_debug")
                     # Get initial conditions and sizes from first image found
                     img = cv.imread(os.path.join(original_folder, subfolder, s_files[0]), cv.IMREAD_GRAYSCALE)
+                    img_files = [ f for f in s_files if subfolder in f and f.endswith('.png') ]
+                    maximum_number_of_points = len(img_files) * img.shape[0] * img.shape[1]
+                    chunksize = (maximum_number_of_points * 20) // 100 // 3 # Get 20% of the max points in a volume, and then a third of that for the column dimension for "all_pts"
+                    logging.debug(f'{maximum_number_of_points=}')
+                    logging.debug(f'{chunksize=}')
+                    c_all_pts = 0    # count of found points for volume
+                    c_all_pts_ch = 0 # count of found points in convex hulls
 
                     # Sort any binary images found
                     s_files.sort(key=lambda x: (-x.count('/'), x), reverse = False)
                     z = 1
-                    all_pts = np.empty((1, 3))                                  # all points for each slice in 3-D space
-                    all_pts_ch = np.empty((1, 3))                               # all points of convex hull of each slice in 3-D sapce
+                    all_pts = np.empty((chunksize, 3))         # all points for each slice in 3-D space
+                    all_pts_ch = np.empty((chunksize, 3))      # all points of convex hull of each slice in 3-D sapce
                     num_hist = []
                     num_ch_hist = []
                     solidity = []
@@ -245,7 +252,7 @@ def main(args):
                     bw_S2 = np.zeros((img.shape[0], 1))                         # side projection (binary - side B)
                     im_S1 = np.zeros((img.shape[1], 1), dtype = np.uint16)      # side projection (grayscale - side A)
                     im_S2 = np.zeros((img.shape[0], 1), dtype = np.uint16)      # side projection (grayscale - side B)
-                    # NOTE(tparker): Have to cast to uint8 after migration to Python3.8. Default dtype is float64.
+                    # NOTE(tparker): Have to cast to uint8 after migration to Python3.8. Default dtype is float64 in Py3.
                     bw_T = (img/255).astype('uint8')                            # top-down projection (binary)
                     im_T = np.zeros(img.shape, dtype = np.uint16)               # top-down projection (grayscale - additive)
                     # for img_name in s_files:
@@ -257,12 +264,26 @@ def main(args):
                             retval, img = cv.threshold(img, 0, 1, cv.THRESH_BINARY)
                             # Count the number of white pixels and convert them to an array of 3-D points
                             pts, num = image2Points(img, z)
-                            # When at least one pixel found...
+                            # When at least one pixel is found...
                             if num > 0:
+                                # Allocate more memory if the number of points in the current slice
+                                # would extend beyond the current allocated space
+                                if (len(all_pts) <= num + c_all_pts):
+                                    all_pts.resize((max(len(all_pts) * 2, num), 3)) # double allocated space
+                                # Assign new points to positions in container for all points
+                                all_pts[c_all_pts: c_all_pts + num] = pts
+                                c_all_pts += num
+
                                 chull = convex_hull_image(img)
                                 pts_ch, num_ch = image2Points(chull, z)
-                                all_pts = np.append(all_pts, pts, axis = 0)
-                                all_pts_ch = np.append(all_pts_ch, pts_ch, axis = 0)
+                                # Allocate more memory if the number of points in the current slice
+                                # would extend beyond the current allocated space
+                                if (len(all_pts_ch) <= num_ch + c_all_pts_ch):
+                                    all_pts_ch.resize(max(len(all_pts_ch) * 2, num_ch), 3) # double allocated space
+                                # Assign new points to positions in container for all points
+                                all_pts_ch[c_all_pts_ch: c_all_pts_ch + num_ch] = pts_ch
+                                c_all_pts_ch += num_ch
+
                                 num_hist.append(num)
                                 num_ch_hist.append(num_ch)
                                 solidity.append(float(num)/num_ch)
@@ -280,9 +301,11 @@ def main(args):
 
                             z += 1
 
-                    cv.imwrite(os.path.join(os.path.dirname(debug_fp), f"{subfolder}__im_T.png"), im_T)
+                    # Resize all_pts to the minimum space required
+                    all_pts.resize((c_all_pts, 3))
+                    all_pts_ch.resize((c_all_pts_ch, 3))
 
-                    # Calculating the biomass and conven hull for a volume is computational expensive (time)
+                    # Calculating the biomass and convex hull for a volume is computationally expensive (time)
                     # Therefore, only perform the calculations if enabled
                     if args.biomass or args.convexhull:
                         kde = KernelDensity(kernel = 'gaussian', bandwidth = 20).fit(all_pts[:, 2][:, None])
@@ -331,7 +354,7 @@ def main(args):
 
                     traits.extend([subfolder])
                     traits.extend([__version__])
-                    traits.extend([args.thickness])
+                    traits.extend([scale])
                     traits.extend([elong, flat, football])
                     if args.biomass:
                         traits.extend(biomass_hist)
