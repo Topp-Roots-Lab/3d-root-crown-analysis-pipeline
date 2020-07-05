@@ -26,9 +26,8 @@ def process(args, ifp, ofp, scale, cmd, lock, position):
     with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as p:
 
         volume_load_pbar = None
-        load_data_pattern = r"Reading\s+(?P<nvoxels>\d+).*" + ifp + ".*"
-        readline_pattern = r"Read line\s+(?P<n>\d+).*"
-        readline_count = 0
+        load_pattern = r"(?P<type>[\w\s]+)\s+(?P<n>\d+)\s+\w+\s+(?P<nvoxels>\d+).*"
+        count_loaded = 0
         complete = False
         # Parse stdout from subprocess
         for line in iter(p.stdout.readline, b''):
@@ -36,29 +35,33 @@ def process(args, ifp, ofp, scale, cmd, lock, position):
                 break
             if line.strip() != '':
                 logging.debug(f"{os.path.basename(ifp)} - {line.strip()}")
-                # Check if a new point cloud dataset is being loaded into memory
-                # If it opened a new volume, get the number of voxels, and then
-                # create a new sub-progress bar
-                load_data_match = re.match(load_data_pattern, line)
-                if load_data_match is not None and "nvoxels" in load_data_match.groupdict():
-                    nvoxels = int(load_data_match.group("nvoxels"))
-                    if args.progress:
-                        with lock:
-                            if volume_load_pbar is None:
-                                volume_load_pbar = tqdm(total=nvoxels, desc=text, position=position, leave=False, unit="points")
-                
-                # If each volume is being monitored, update its respective
-                # progress bar
-                if args.progress and volume_load_pbar is not None:
-                    with lock:
-                        if ifp in line:
-                            readline_match = re.match(readline_pattern, line)
-                            if readline_match is not None and "n" in readline_match.groupdict():
-                                n_lines_read = int(readline_match.group("n")) - readline_count
-                                readline_count += n_lines_read
-                                logging.info(f"{n_lines_read=}")
-                                logging.info(f"{readline_count=}")
-                                volume_load_pbar.update(n_lines_read)
+                # TODO(tparker): Eventually I want to show progress per volume
+                # # Check if a new point cloud dataset is being loaded into memory
+                # # If it opened a new volume, get the number of voxels, and then
+                # # create a new sub-progress bar
+                # load_match = re.match(load_pattern, line)
+                # if load_match and "nvoxels" in load_match.groupdict() :
+                #     logging.debug(load_match)
+                #     load_type = load_match.group("type")
+                #     nvoxels = int(load_match.group("nvoxels"))
+                #     if args.progress:
+                #         with lock:
+                #             if volume_load_pbar is None:
+                #                 text = f"{text} ({load_type})"
+                #                 if nvoxels != count_loaded:
+                #                     volume_load_pbar = tqdm(total=nvoxels, desc=text, position=position, leave=False, unit="points")
+                #                 else:
+                #                     volume_load_pbar.close()
+                #                     volume_load_pbar = None
+                #             else:
+                #                 if ifp in line:
+                #                     if load_match and "n" in load_match.groupdict():
+                #                         # If each volume is being monitored, update its respective
+                #                         # progress bar
+                #                         n_loaded = int(load_match.group("n")) - count_loaded
+                #                         count_loaded += n_loaded
+                #                         volume_load_pbar.update(n_loaded)
+
                 if "Exiting" in line or "Abort" in line:
                     logging.debug(f"Done processing '{volume_name}'")
                     complete = True
@@ -70,7 +73,6 @@ def process(args, ifp, ofp, scale, cmd, lock, position):
             with lock:
                 if volume_load_pbar is not None:
                     volume_load_pbar.close()
-
 
 def wrl2ctm(meshlabserver, ifp):
     ofp = "".join([os.path.splitext(ifp)[0], ".ctm"])

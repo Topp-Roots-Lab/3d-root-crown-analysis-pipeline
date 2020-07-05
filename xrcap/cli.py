@@ -67,7 +67,7 @@ def skeleton():
     parser.add_argument('-t', "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
     parser.add_argument("-f", '--force', action="store_true", help="Force file creation. Overwrite any existing files.")
     parser.add_argument("-n", '--dry-run', dest='dryrun', action="store_true", help="Perform a trial run. Do not create image files, but logs will be updated.")
-    parser.add_argument("--progress", action="store_true", help="Enables multiple progress bar, one for each volume during processing.")
+    parser.add_argument("--progress", action="store_true", help="(Not yet implemented) Enables multiple progress bar, one for each volume during processing.")
     parser.add_argument('-s', "--scale", help="The scale parameter using for skeleton.", default=2.25)
     parser.add_argument("path", metavar='PATH', type=str, nargs=1, help='Input directory to process')
     args = parser.parse_args()
@@ -85,6 +85,8 @@ def skeleton():
     # Disable progress bars if verbose mode enabled
     if args.verbose:
         args.progress = False
+    # NOTE(tparker): Remove this line once progress on an individual volume is implemented
+    args.progress = False
 
     start_time = time.perf_counter()
     returncode = batch_skeleton.main(args)
