@@ -134,12 +134,15 @@ def validate_dat_metadata(args):
     # For each provided threshold images path...
     dat_filepaths = []
     for fp in args.path:
-        # Find the corresponding RAW/DAT folder
-        for root, dirs, files in os.walk(fp):
-            for volume_directory_basename in dirs:
-                dat_filepath = __find_filepath(f"{volume_directory_basename}.dat", os.path.dirname(os.path.realpath(fp)))
-                logging.debug(f"Expected DAT filepath: '{dat_filepath}'")
-                dat_filepaths.append(dat_filepath)
+        for root, dirs, files in os.walk(os.path.realpath(fp)):
+            for subfolder in dirs:
+                # Find folder that contains RAW and DAT files
+                parent_folder = os.path.dirname(fp) if not fp.endswith('/') else os.path.dirname(os.path.dirname(fp))
+                basename = os.path.basename(root).split("_thresholded_images")[0]
+                expected_data_directory = os.path.join(parent_folder, basename) # /path/to/data_thresholded_images -> /path/to/data
+                logging.debug(f"{expected_data_directory=}")
+                dat_filepath = __find_filepath(f"{subfolder}.dat", expected_data_directory)
+        dat_filepaths.append(dat_filepath)
     logging.debug(f"Located DAT files: {dat_filepaths}")
     # Validate DAT files
     for dat_fp in dat_filepaths:
