@@ -199,7 +199,7 @@ def main(args):
                 if args.thickness is None:
                     # Find folder that contains RAW and DAT files
                     parent_folder = root
-                    basename = os.path.basename(root).split("_")[0]
+                    basename = os.path.basename(root).split("_thresholded_images")[0]
                     while 'thresholded_images' in parent_folder:
                         parent_folder = os.path.dirname(parent_folder)
                     expected_data_directory = os.path.join(parent_folder, basename) # /path/to/data_thresholded_images -> /path/to/data
