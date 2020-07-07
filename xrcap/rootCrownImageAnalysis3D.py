@@ -311,7 +311,7 @@ def process(args, fp, subfolder, scale, depth, pos, pbar_position):
         for i, trait_name in enumerate(['CH_Mean', 'CH_Std', 'CH_Skewness', 'CH_Kurtosis', 'CH_Energy', 'CH_Entropy', 'CH_Smoothness']):
             traits[trait_name] = num_ch_hist_texture[i]
 
-        for i, train_name in enumerate(['S_Mean', 'S_Std', 'S_Skewness', 'S_Kurtosis', 'S_Energy', 'S_Entropy', 'S_Smoothness']):
+        for i, trait_name in enumerate(['S_Mean', 'S_Std', 'S_Skewness', 'S_Kurtosis', 'S_Energy', 'S_Entropy', 'S_Smoothness']):
             traits[trait_name] = solidity_hist_texture[i]
 
     return traits
