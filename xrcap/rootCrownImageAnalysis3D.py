@@ -150,7 +150,7 @@ def validate_dat_metadata(args):
     for dat_fp in dat_filepaths:
         metadata = dat.read(dat_fp)
 
-def process(args, fp, subfolder, out_file, depth):
+def process(args, fp, subfolder, out_file, scale, depth, pos):
     traits = []
     for s_root, s_dirs, s_files in os.walk(os.path.join(fp, subfolder)):
         # Get initial conditions and sizes from first image found
@@ -380,7 +380,7 @@ def main(args):
                     pos = np.linspace(depth//20, depth, 20)[:, None]
                     logging.debug(pos)
 
-                    p.apply_async(process, args=(args, fp, subfolder, out_file, depth), callback=async_callback, error_callback=async_error_callback)
+                    p.apply_async(process, args=(args, fp, subfolder, out_file, scale, depth, pos), callback=async_callback, error_callback=async_error_callback)
 
             p.close()
             p.join()
