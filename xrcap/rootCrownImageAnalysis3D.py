@@ -150,7 +150,7 @@ def validate_dat_metadata(args):
     for dat_fp in dat_filepaths:
         metadata = dat.read(dat_fp)
 
-def process(args, fp, subfolder, out_file, scale, depth, pos, pbar_position):
+def process(args, fp, subfolder, scale, depth, pos, pbar_position):
     traits = []
     for s_root, s_dirs, s_files in os.walk(os.path.join(fp, subfolder)):
         # Get initial conditions and sizes from first image found
@@ -300,6 +300,7 @@ def main(args):
     # Disable debug statements from matplotlib.font_manager
     logging.getLogger('matplotlib.font_manager').setLevel(logging.WARNING)
 
+
     # When not slice thickness is provided, try to extract it from .DAT
     if not args.thickness:
         logging.debug(f"Slice thickness was not provided. Extracting information from .DAT files.")
@@ -307,6 +308,7 @@ def main(args):
 
     for fp in args.path:
         list_dirs = os.walk(fp)
+        results = []
         field = []
 
         field.extend(['FileName'])
@@ -328,22 +330,13 @@ def main(args):
         field.extend(['CH_Mean', 'CH_Std', 'CH_Skewness', 'CH_Kurtosis', 'CH_Energy', 'CH_Entropy', 'CH_Smoothness'])
         field.extend(['S_Mean', 'S_Std', 'S_Skewness', 'S_Kurtosis', 'S_Energy', 'S_Entropy', 'S_Smoothness'])
 
-        # If the output file does not exist, initialize it with a header
-        out_filename = os.path.join(fp, 'traits.csv')
-        if not os.path.exists(out_filename):
-            logging.info(f"Create output file: {out_filename}")
-            out_file = open(out_filename, "a+")
-            np.savetxt(out_file, np.array(field).reshape(1,  np.array(field).shape[0]), fmt='%s',  delimiter=',')
-        else:
-            out_file = open(out_filename, "a+")
-
-
         # For each subdirectory in the binary images folder... (i.e., for each volume...)
         volumes = [ subfolder for subfolder in [ dirs for root, dirs, files in os.walk(fp) ] if subfolder != [] ][0]
         pbar = tqdm(total=len(volumes), desc="Overall progress", position=0)
 
         def async_callback(*response):
             logging.info(response)
+            results.append(np.array(response).reshape(1, np.array(response).shape[0]))
             pbar.update()
         def async_error_callback(*err):
             logging.error(err)
@@ -388,15 +381,25 @@ def main(args):
                     pos = np.linspace(depth//20, depth, 20)[:, None]
                     logging.debug(pos)
 
-                    p.apply_async(process, args=(args, fp, subfolder, out_file, scale, depth, pos, pbar_position), callback=async_callback, error_callback=async_error_callback)
+                    p.apply_async(process, args=(args, fp, subfolder, scale, depth, pos, pbar_position), callback=async_callback, error_callback=async_error_callback)
 
                 p.close()
                 p.join()
 
-    if slicethicknessCubicFlag:
-        logging.warning(f"The slicethickness value for at least one volume was found to be not exactly equal. Check the log for details. The following volumes were flagged: {flaggedVolumes}")
 
-            # np.savetxt(out_file, np.array(traits).reshape(1, np.array(traits).shape[0]), fmt='%s', delimiter=',')
+        # If the output file does not exist, initialize it with a header
+        out_filename = os.path.join(fp, 'traits.csv')
+        if not os.path.exists(out_filename):
+            logging.debug(f"Create output file: {out_filename}")
+        from pprint import pprint
+        pprint(results)
+        # out_file = open(out_filename, "a+")
+        # np.savetxt(out_file, np.array(field).reshape(1,  np.array(field).shape[0]), fmt='%s',  delimiter=',')
+
+        # np.savetxt(out_file, np.array(traits).reshape(1, np.array(traits).shape[0]), fmt='%s', delimiter=',')
 
         out_file.close()
+
+    if slicethicknessCubicFlag:
+    logging.warning(f"The slicethickness value for at least one volume was found to be not exactly equal. Check the log for details. The following volumes were flagged: {flaggedVolumes}")
     return 0
