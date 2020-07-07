@@ -15,6 +15,7 @@ from multiprocessing.pool import ThreadPool
 import cv2 as cv
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from PIL import Image
 from rawtools import dat
 from scipy import interpolate
@@ -151,7 +152,6 @@ def validate_dat_metadata(args):
         metadata = dat.read(dat_fp)
 
 def process(args, fp, subfolder, scale, depth, pos, pbar_position):
-    traits = []
     for s_root, s_dirs, s_files in os.walk(os.path.join(fp, subfolder)):
         # Get initial conditions and sizes from first image found
         img = cv.imread(os.path.join(fp, subfolder, s_files[0]), cv.IMREAD_GRAYSCALE)
@@ -181,7 +181,7 @@ def process(args, fp, subfolder, scale, depth, pos, pbar_position):
         im_T = np.zeros(img.shape, dtype = np.uint16)               # top-down projection (grayscale - additive)
         # for img_name in s_files:
         # I.e., For each binary image...
-        for img_name in tqdm(s_files, desc=f"Processing '{subfolder}'", position=pbar_position):
+        for img_name in tqdm(s_files, desc=f"Processing '{subfolder}'", position=pbar_position, leave=False):
             if os.path.splitext(img_name)[1] == '.png':
                 # Read in binary image as grayscale and then conver to true binary with thresholding
                 img = cv.imread(os.path.join(fp, subfolder, img_name), cv.IMREAD_GRAYSCALE)
@@ -276,21 +276,43 @@ def process(args, fp, subfolder, scale, depth, pos, pbar_position):
         num_ch_hist_texture = calStatTexture(num_ch_hist)
         solidity_hist_texture = calStatTexture(solidity)
 
-        traits.extend([subfolder])
-        traits.extend([__version__])
-        traits.extend([scale])
-        traits.extend([elong, flat, football])
+        traits = {}
+        traits["FileName"] = subfolder
+        traits["Pipeline Version"] = __version__
+        traits["Scale"] = scale
+        traits["Elongation"] = elong
+        traits["Flatness"] = flat
+        traits["Football"] = football
         if args.biomass:
             traits.extend(biomass_hist)
+            for i in range(1,21):
+                traits[f"Biomass_vhist{i}"] = biomass_hist[i-1]
         if args.convexhull:
-            traits.extend(convexhull_hist)
-        traits.extend(np.squeeze(solidity_hist))
-        traits.extend((densityS1 + densityS2)/2)
-        traits.extend(densityT)
-        traits.extend([(FD_S1 + FD_S2)/2, FD_T])
-        traits.extend(num_hist_texture)
-        traits.extend(num_ch_hist_texture)
-        traits.extend(solidity_hist_texture)
+            for i in range(1,21):
+                traits[f"Convexhull_vhist{i}"] = convexhull_hist[i-1]
+
+        solidity_hist = np.squeeze(solidity_hist)
+        for i in range(1,21):
+            traits[f"Solidity_vhist{i}"] = solidity_hist[i-1]
+
+
+        densityS = (densityS1 + densityS2)/2
+        for i in range(1,7):
+            traits[f"Density_S{i}"] = densityS[i-1]
+
+        for i in range(1,7):
+            traits[f"Density_T{i}"] = densityT[i-1]
+
+        FractalDimension_S, FractalDimension_T = [(FD_S1 + FD_S2)/2, FD_T]
+        traits["FractalDimension_S"] = FractalDimension_S
+        traits["FractalDimension_T"] = FractalDimension_T
+        for i, trait_name in enumerate(['N_Mean', 'N_Std', 'N_Skewness', 'N_Kurtosis', 'N_Energy', 'N_Entropy', 'N_Smoothness']):
+            traits[trait_name] = num_hist_texture[i]
+        for i, trait_name in enumerate(['CH_Mean', 'CH_Std', 'CH_Skewness', 'CH_Kurtosis', 'CH_Energy', 'CH_Entropy', 'CH_Smoothness']):
+            traits[trait_name] = num_ch_hist_texture[i]
+
+        for i, train_name in enumerate(['S_Mean', 'S_Std', 'S_Skewness', 'S_Kurtosis', 'S_Energy', 'S_Entropy', 'S_Smoothness']):
+            traits[trait_name] = solidity_hist_texture[i]
 
     return traits
 
@@ -309,34 +331,13 @@ def main(args):
     for fp in args.path:
         list_dirs = os.walk(fp)
         results = []
-        field = []
-
-        field.extend(['FileName'])
-        field.extend(['Pipeline_version'])
-        field.extend(['Scale'])
-        field.extend(['Elongation', 'Flatness', 'Football']) # Mao's traits
-
-        # Biomass and convex hull for the volume take a substantial amount of processing time
-        # Therefore, they must be explicitly enabled for them to be processed
-        if args.biomass:
-            field.extend(['Biomass_vhist{}'.format(i) for i in range(1, 21)])
-        if args.convexhull:
-            field.extend(['Convexhull_vhist{}'.format(i) for i in range(1, 21)])
-        field.extend(['Solidity_vhist{}'.format(i) for i in range(1, 21)])
-        field.extend(['Density_S{}'.format(i) for i in range(1, 7)])
-        field.extend(['Density_T{}'.format(i) for i in range(1, 7)])
-        field.extend(['FractalDimension_S', 'FractalDimension_T'])
-        field.extend(['N_Mean', 'N_Std', 'N_Skewness', 'N_Kurtosis', 'N_Energy', 'N_Entropy', 'N_Smoothness'])
-        field.extend(['CH_Mean', 'CH_Std', 'CH_Skewness', 'CH_Kurtosis', 'CH_Energy', 'CH_Entropy', 'CH_Smoothness'])
-        field.extend(['S_Mean', 'S_Std', 'S_Skewness', 'S_Kurtosis', 'S_Energy', 'S_Entropy', 'S_Smoothness'])
-
         # For each subdirectory in the binary images folder... (i.e., for each volume...)
         volumes = [ subfolder for subfolder in [ dirs for root, dirs, files in os.walk(fp) ] if subfolder != [] ][0]
         pbar = tqdm(total=len(volumes), desc="Overall progress", position=0)
 
         def async_callback(*response):
-            logging.info(response)
-            results.append(np.array(response).reshape(1, np.array(response).shape[0]))
+            # results.append(np.array(response).reshape(1, np.array(response).shape[0]))
+            results.append(response[0]) # response is returned as a tuple
             pbar.update()
         def async_error_callback(*err):
             logging.error(err)
@@ -386,19 +387,26 @@ def main(args):
                 p.close()
                 p.join()
 
-
         # If the output file does not exist, initialize it with a header
+        results = pd.DataFrame(results, columns=list(results[0].keys()))
         out_filename = os.path.join(fp, 'traits.csv')
+        # If no file exists yet, inform user where it will be generated
         if not os.path.exists(out_filename):
             logging.debug(f"Create output file: {out_filename}")
-        from pprint import pprint
-        pprint(results)
-        # out_file = open(out_filename, "a+")
-        # np.savetxt(out_file, np.array(field).reshape(1,  np.array(field).shape[0]), fmt='%s',  delimiter=',')
-
-        # np.savetxt(out_file, np.array(traits).reshape(1, np.array(traits).shape[0]), fmt='%s', delimiter=',')
-
-        out_file.close()
+        # Otherwise, either overwrite file or skip
+        else:
+            if args.force:
+                logging.warning(f"File already exists '{out_filename}'. Overwriting.")
+                results.to_csv(out_filename)
+            else:
+                ans = input(f"Output file already exists. Do you wish to overwrite it? [y/N]: ")
+                if ans.lower() == "y":
+                    results.to_csv(out_filename, index=False)
+                else:
+                    pd.set_option('display.max_columns', None)
+                    pd.set_option('display.max_rows', None)
+                    logging.debug(results, result=False)
+                    logging.info(f"Results not saved to file. Unformatted results saved to log.")
 
     if slicethicknessCubicFlag:
         logging.warning(f"The slicethickness value for at least one volume was found to be not exactly equal. Check the log for details. The following volumes were flagged: {flaggedVolumes}")
