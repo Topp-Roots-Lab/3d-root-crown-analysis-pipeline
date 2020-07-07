@@ -401,5 +401,5 @@ def main(args):
         out_file.close()
 
     if slicethicknessCubicFlag:
-    logging.warning(f"The slicethickness value for at least one volume was found to be not exactly equal. Check the log for details. The following volumes were flagged: {flaggedVolumes}")
+        logging.warning(f"The slicethickness value for at least one volume was found to be not exactly equal. Check the log for details. The following volumes were flagged: {flaggedVolumes}")
     return 0
