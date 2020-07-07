@@ -339,7 +339,7 @@ def main(args):
 
 
         # For each subdirectory in the binary images folder... (i.e., for each volume...)
-        volumes = [ subfolder for subfolder in [ dirs for root, dirs, files in os.walk(fp) ] if subfolder is not None ]
+        volumes = [ subfolder for subfolder in [ dirs for root, dirs, files in os.walk(fp) ] if subfolder != [] ][0]
         pbar = tqdm(total=len(volumes), desc="Overall progress", position=0)
 
         def async_callback(*response):
