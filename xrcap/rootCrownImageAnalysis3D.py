@@ -150,7 +150,7 @@ def validate_dat_metadata(args):
     for dat_fp in dat_filepaths:
         metadata = dat.read(dat_fp)
 
-def process(args, fp, subfolder, out_file, scale, depth, pos):
+def process(args, fp, subfolder, out_file, scale, depth, pos, pbar_position):
     traits = []
     for s_root, s_dirs, s_files in os.walk(os.path.join(fp, subfolder)):
         # Get initial conditions and sizes from first image found
@@ -181,7 +181,7 @@ def process(args, fp, subfolder, out_file, scale, depth, pos):
         im_T = np.zeros(img.shape, dtype = np.uint16)               # top-down projection (grayscale - additive)
         # for img_name in s_files:
         # I.e., For each binary image...
-        for img_name in tqdm(s_files, desc=f"Processing '{subfolder}'"):
+        for img_name in tqdm(s_files, desc=f"Processing '{subfolder}'", position=pbar_position):
             if os.path.splitext(img_name)[1] == '.png':
                 # Read in binary image as grayscale and then conver to true binary with thresholding
                 img = cv.imread(os.path.join(fp, subfolder, img_name), cv.IMREAD_GRAYSCALE)
@@ -337,17 +337,23 @@ def main(args):
         else:
             out_file = open(out_filename, "a+")
 
+
+        # For each subdirectory in the binary images folder... (i.e., for each volume...)
+        volumes = [ subfolder for subfolder in [ dirs for root, dirs, files in os.walk(fp) ] if subfolder is not None ]
+        pbar = tqdm(total=len(volumes), desc="Overall progress", item="volume", position=0)
+
         def async_callback(*response):
             logging.info(response)
+            pbar.update()
         def async_error_callback(*err):
             logging.error(err)
 
-        # For each subdirectory in the binary images folder... (i.e., for each volume...)
+        slicethicknessCubicFlag = False
+        flaggedVolumes = []
         with ThreadPool(args.threads) as p:
             for root, dirs, files in list_dirs:
-                for subfolder in dirs:
+                for pbar_position, subfolder in enumerate(dirs):
                     logging.debug(f"Processing {subfolder}")
-
                     # When not slice thickness is provided, try to extract it from .DAT
                     if args.thickness is None:
                         # Find folder that contains RAW and DAT files
@@ -361,7 +367,9 @@ def main(args):
                         metadata = dat.read(dat_filepath)
                         logging.debug(f"Loaded metadata from DAT: {metadata}")
                         if not (metadata["x_thickness"] == metadata["y_thickness"] == metadata["z_thickness"]):
-                            logging.warning(f"Slice thickness for '{subfolder}' are not the same. {metadata['x_thickness']=}, {metadata['y_thickness']=}, {metadata['z_thickness']=}")
+                            slicethicknessCubicFlag = True
+                            flaggedVolumes.append(subfolder)
+                            logging.debug(f"Slice thickness for '{subfolder}' are not the same. {metadata['x_thickness']=}, {metadata['y_thickness']=}, {metadata['z_thickness']=}")
                         thickness = round(float(metadata["z_thickness"]),3)
                     else:
                         thickness = args.thickness
@@ -380,10 +388,13 @@ def main(args):
                     pos = np.linspace(depth//20, depth, 20)[:, None]
                     logging.debug(pos)
 
-                    p.apply_async(process, args=(args, fp, subfolder, out_file, scale, depth, pos), callback=async_callback, error_callback=async_error_callback)
+                    p.apply_async(process, args=(args, fp, subfolder, out_file, scale, depth, pos, pbar_position), callback=async_callback, error_callback=async_error_callback)
 
-            p.close()
-            p.join()
+                p.close()
+                p.join()
+
+    if slicethicknessCubicFlag:
+        logging.warning(f"The slicethickness value for at least one volume was found to be not exactly equal. Check the log for details. The following volumes were flagged: {flaggedVolumes}")
 
             # np.savetxt(out_file, np.array(traits).reshape(1, np.array(traits).shape[0]), fmt='%s', delimiter=',')
 
