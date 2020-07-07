@@ -352,7 +352,7 @@ def main(args):
         flaggedVolumes = []
         with ThreadPool(args.threads) as p:
             for root, dirs, files in list_dirs:
-                for pbar_position, subfolder in enumerate(dirs):
+                for pbar_position, subfolder in enumerate(dirs, start=1):
                     logging.debug(f"Processing {subfolder}")
                     # When not slice thickness is provided, try to extract it from .DAT
                     if args.thickness is None:
