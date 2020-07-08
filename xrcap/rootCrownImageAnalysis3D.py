@@ -392,11 +392,12 @@ def main(args):
         # If no file exists yet, inform user where it will be generated
         if not os.path.exists(out_filename):
             logging.debug(f"Create output file: {out_filename}")
+            results.to_csv(out_filename, index=False)
         # Otherwise, either overwrite file or skip
         else:
             if args.force:
                 logging.warning(f"File already exists '{out_filename}'. Overwriting.")
-                results.to_csv(out_filename)
+                results.to_csv(out_filename, index=False)
             else:
                 ans = input(f"Output file already exists. Do you wish to overwrite it? [y/N]: ")
                 if ans.lower() == "y":
