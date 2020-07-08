@@ -231,13 +231,12 @@ def process(args, fp, subfolder, scale, depth, pos, pbar_position):
 
         # Calculating the biomass and convex hull for a volume is computationally expensive (time)
         # Therefore, only perform the calculations if enabled
-        if args.biomass or args.convexhull:
-            kde = KernelDensity(kernel = 'gaussian', bandwidth = 20).fit(all_pts[:, 2][:, None])
-
         if args.biomass:
+            kde = KernelDensity(kernel = 'gaussian', bandwidth = 20).fit(all_pts[:, 2][:, None])
             biomass_hist = np.exp(kde.score_samples(pos))
 
         if args.convexhull:
+            kde = KernelDensity(kernel = 'gaussian', bandwidth = 20).fit(all_pts_ch[:, 2][:, None])
             convexhull_hist = np.exp(kde.score_samples(pos))
 
         if len(solidity) < depth:
