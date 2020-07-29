@@ -7,6 +7,7 @@ Created on Sep 20, 2018
 import logging
 import math
 import os
+import re
 import threading
 from importlib.metadata import version
 from multiprocessing import Pool, cpu_count
@@ -151,7 +152,7 @@ def validate_dat_metadata(args):
     for dat_fp in dat_filepaths:
         metadata = dat.read(dat_fp)
 
-def process(args, fp, subfolder, scale, depth, pos, pbar_position):
+def process(args, fp, subfolder, thickness, scale, depth, pos, pbar_position):
     for s_root, s_dirs, s_files in os.walk(os.path.join(fp, subfolder)):
         # Get initial conditions and sizes from first image found
         img = cv.imread(os.path.join(fp, subfolder, s_files[0]), cv.IMREAD_GRAYSCALE)
@@ -234,19 +235,30 @@ def process(args, fp, subfolder, scale, depth, pos, pbar_position):
         if args.kde:
             import asyncio
             async def process_kde_with_matlab(cmd):
-                proc = await asyncio.create_subprocess_shell(
-                    cmd,
-                    stdout==asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE)
+
+                proc = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
 
                 stdout, stderr = await proc.communicate()
                 print(f'[{cmd!r} exited with {proc.returncode}]')
                 if stdout:
-                    print(f'[stdout]\n{stdout.decode()}')
+                    vhist_pattern = r".*(?P<vhist_type>((biomass)|(convexHull))_vhist)(?P<vhist_number>\d+)\s+(?P<vhist_value>[\d\.]+)"
+                    output = stdout.decode().split("\n")
+                    biomass_vhist = []
+                    convexhull_vhist = []
+                    for line in output:
+                        m = re.match(vhist_pattern, line)
+                        if m is not None:
+                            if 'biomass' in m.group('vhist_type'):
+                                biomass_vhist.append(m.group('vhist_value'))
+                            elif 'convex' in m.group('vhist_type'):
+                                convexhull_vhist.append(m.group('vhist_value'))
+                    logging.debug(biomass_vhist)
+                    logging.debug(convexhull_vhist)
+                    return biomass_vhist, convexhull_vhist
                 if stderr:
-                    print(f'[stderr]\n{stderr.decode()}')
+                    logging.error(f'[stderr]\n{stderr.decode()}')
 
-            asyncio.run(run('ls /zzz'))
+            biomass_hist, convexhull_hist = asyncio.run(process_kde_with_matlab(f"kde-traits {os.path.join(fp, subfolder)} {thickness} {args.sampling}"))
             # logging.debug(f"Calculating biomass for {subfolder}")
             # biomass_pbar = tqdm(total = 1, desc=f"Calculating biomass for {subfolder}", position=pbar_position, leave=False)
             # kde = KernelDensity(kernel = 'gaussian', bandwidth = 20).fit(all_pts[:, 2][:, None])
@@ -402,7 +414,7 @@ def main(args):
                     pos = np.linspace(depth//20, depth, 20)[:, None]
                     logging.debug(pos)
 
-                    p.apply_async(process, args=(args, fp, subfolder, scale, depth, pos, pbar_position), callback=async_callback, error_callback=async_error_callback)
+                    p.apply_async(process, args=(args, fp, subfolder, thickness, scale, depth, pos, pbar_position), callback=async_callback, error_callback=async_error_callback)
 
                 p.close()
                 p.join()
