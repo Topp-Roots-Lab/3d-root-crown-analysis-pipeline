@@ -101,8 +101,7 @@ def image_analysis():
     parser.add_argument('-s', "--sampling", default=2, help="resolution parameter")
     parser.add_argument('-t', "--thickness", type=float, help="slice thickness in mm")
     parser.add_argument("--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
-    parser.add_argument("--biomass", action="store_true", help="Enable calculation for biomass")
-    parser.add_argument("--convexhull", action="store_true", help="Enable calculation for convex hull")
+    parser.add_argument("--kde", action="store_true", help="Enable calculation for biomass_vhist and convexhull_vhist")
     parser.add_argument("path", metavar='input_folder', type=str, nargs=1, help='Input directory to process')
     args = parser.parse_args()
 
