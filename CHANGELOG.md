@@ -2,13 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## v1.6.1 - 2020-07-30
-
-### Fixed
-
-- Replaced initialization of projection images with `np.zeros()`. Values left behind in main memory caused ghost images or garbage values to be retained between volumes in batch processing
-
-## v1.6.0 - 2020-07-29
+## v1.6.0 - 2020-07-30
 
 ### Added
 
@@ -37,6 +31,7 @@ All notable changes to this project will be documented in this file.
 - `qc_point_cloud` now will correctly process a data folder with exactly one volume (previously it would state that no volumes were present)
 - Removed a dummy point for the collection of all points and all points in the convex hull of the volume
 - Removed dummy values from initialized images for density_T calculations
+- Replaced initialization of projection images with `np.zeros()`. Values left behind in main memory caused ghost images or garbage values to be retained between volumes in batch processing
 
 ### Notes
 
