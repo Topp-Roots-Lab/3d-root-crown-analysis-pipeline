@@ -239,7 +239,7 @@ def process(args, fp, subfolder, thickness, scale, depth, pos, pbar_position):
                 proc = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
 
                 stdout, stderr = await proc.communicate()
-                print(f'[{cmd!r} exited with {proc.returncode}]')
+                logging.debug(f'[{cmd!r} exited with {proc.returncode}]')
                 if stdout:
                     vhist_pattern = r".*(?P<vhist_type>((biomass)|(convexHull))_vhist)(?P<vhist_number>\d+)\s+(?P<vhist_value>[\d\.]+)"
                     output = stdout.decode().split("\n")
@@ -259,21 +259,6 @@ def process(args, fp, subfolder, thickness, scale, depth, pos, pbar_position):
                     logging.error(f'[stderr]\n{stderr.decode()}')
 
             biomass_hist, convexhull_hist = asyncio.run(process_kde_with_matlab(f"kde-traits {os.path.join(fp, subfolder)} {thickness} {args.sampling}"))
-            # logging.debug(f"Calculating biomass for {subfolder}")
-            # biomass_pbar = tqdm(total = 1, desc=f"Calculating biomass for {subfolder}", position=pbar_position, leave=False)
-            # kde = KernelDensity(kernel = 'gaussian', bandwidth = 20).fit(all_pts[:, 2][:, None])
-            # biomass_hist = np.exp(kde.score_samples(pos))
-            # biomass_pbar.update()
-            # biomass_pbar.close()
-            # logging.debug(f"Finished calculating biomass for {subfolder}")
-
-            # logging.debug(f"Calculating convexhull for {subfolder}")
-            # convexhull_pbar = tqdm(total = 1, desc=f"Calculating convexhull for {subfolder}", position=pbar_position, leave=False)
-            # kde = KernelDensity(kernel = 'gaussian', bandwidth = 20).fit(all_pts_ch[:, 2][:, None])
-            # convexhull_hist = np.exp(kde.score_samples(pos))
-            # convexhull_pbar.update()
-            # convexhull_pbar.close()
-            # logging.debug(f"Finished calculating convexhull for {subfolder}")
 
         if len(solidity) < depth:
             solidity = np.append(solidity, np.zeros(int(depth-len(solidity)))) # pad with zeros for missing depth values
