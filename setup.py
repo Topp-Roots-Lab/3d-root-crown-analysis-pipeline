@@ -4,10 +4,10 @@
 
 from setuptools import setup, find_packages
 
-with open('README.rst') as readme_file:
+with open('README.md') as readme_file:
     readme = readme_file.read()
 
-with open('HISTORY.rst') as history_file:
+with open('CHANGELOG.md') as history_file:
     history = history_file.read()
 
 requirements = [ 'rawtools', 'tqdm', 'pandas', 'numpy', 'opencv-python', 'scikit-learn', 'scikit-image', 'scipy', 'xvfbwrapper' ]
@@ -46,7 +46,7 @@ setup(
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
-    url='https://github.com/tparkerd/xrcap',
+    url='https://github.com/Topp-Roots-Lab/xrcap',
     version='1.6.0',
     zip_safe=False,
 )
