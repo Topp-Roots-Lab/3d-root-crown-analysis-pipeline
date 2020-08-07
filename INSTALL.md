@@ -98,5 +98,5 @@ pip2 install -r /opt/3drcap/requirements.txt
 ### Compile C++ Binaries
 
 ```bash
-g++ -o bin/rootCrownSegmentation src/rootCrownSegmentation.cpp -lopencv_highgui -lopencv_imgcodecs -lopencv_imgproc -lopencv_core -lboost_system -lboost_filesystem -lboost_program_options
+g++ -o xrcap/lib/rootCrownSegmentation xrcap/rootCrownSegmentation.cpp -lopencv_highgui -lopencv_imgcodecs -lopencv_imgproc -lopencv_core -lboost_system -lboost_filesystem -lboost_program_options
 ```
