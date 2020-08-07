@@ -2,25 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
-## v1.6.0 - 2020-07-06
+## v1.6.0 - 2020-07-30
 
 ### Added
 
 - Redundant logging to `/var/log/3drcap` for all modules
 - Logging for `rootCrownSegmentation` (handled by `batch_segmentation` module)
-- Utility module for centralizing logging configuration
-- Functionality for compressing VRML files to CTM using `meshlabserver` with xvfb wrapper
+- Separate module for centralizing logging configuration
+- Functionality for automatically compressing VRML files to CTM using `meshlabserver` with xvfb wrapper
 - The version of `rootCrownSegmentation` included in generated OBJ files
 
 ### Changed
 
+- Converted `rootCrownImageAnalysis3D.py` from Python version 2 to 3.8
 - Replaced multiprocessing Pool with ThreadedPool to allow for simultaneously existing progress bars (`batch_segmentation`)
-- Logs are named to the nearest second and include the module in the filename
+- Logs are named to the nearest second (datetime) and include the module in the filename
 - Updated log handling to match `Skeleton` v2.1.1
 - Removed `.CSV` output file for slices flagged for incorrect segmentation (see note 1)
 - Reduce default probability that a point is included in downsampled OBJ for the `qc_point_cloud` module
 - Refactored `rootCrownSegmentation.cpp` to use more descriptive variable names and explicit comments
 - Implemented additional checks during segmentations to prevent slices of air from being segmented as root system
+- Traits calculated using kernel density estimation, i.e., biomass_vhist and convexhull_vhist) call compiled MATLAB code (use `--kde` CLI flag)
+- Refactored reading point data from thresholded images in `rootCrownImageAnalysis3D` to reduce the number of times copies of data while minimizing the amount of allocated memory per volume (`np.append()` changed to assign data to sub-range of `numpy.array`)
 
 ### Fixed
 
@@ -28,17 +31,19 @@ All notable changes to this project will be documented in this file.
 - `qc_point_cloud` now will correctly process a data folder with exactly one volume (previously it would state that no volumes were present)
 - Removed a dummy point for the collection of all points and all points in the convex hull of the volume
 - Removed dummy values from initialized images for density_T calculations
+- Replaced initialization of projection images with `np.zeros()`. Values left behind in main memory caused ghost images or garbage values to be retained between volumes in batch processing
 
 ### Notes
+
 1. This was removed because it provides less information than the individual TXT
-files that list the exact problematic slices.
+   files that list the exact problematic slices.
 
 ## v1.5.0 - 2020-04-23
 
 ### Added
 
 - Script to downsample point cloud data for quality control version of point cloud data
-- Added cutoff value to input options for binary image segmentation script
+- Cutoff value to input options for binary image segmentation script
 - Detect bit depth of .RAW volumes during `raw2img` processing
 
 ### Changed
