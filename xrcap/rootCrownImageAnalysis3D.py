@@ -7,6 +7,7 @@ Created on Sep 20, 2018
 import logging
 import math
 import os
+import re
 import threading
 from importlib.metadata import version
 from multiprocessing import Pool, cpu_count
@@ -151,7 +152,7 @@ def validate_dat_metadata(args):
     for dat_fp in dat_filepaths:
         metadata = dat.read(dat_fp)
 
-def process(args, fp, subfolder, scale, depth, pos, pbar_position):
+def process(args, fp, subfolder, thickness, scale, depth, pos, pbar_position):
     for s_root, s_dirs, s_files in os.walk(os.path.join(fp, subfolder)):
         # Get initial conditions and sizes from first image found
         img = cv.imread(os.path.join(fp, subfolder, s_files[0]), cv.IMREAD_GRAYSCALE)
@@ -231,23 +232,33 @@ def process(args, fp, subfolder, scale, depth, pos, pbar_position):
 
         # Calculating the biomass and convex hull for a volume is computationally expensive (time)
         # Therefore, only perform the calculations if enabled
-        if args.biomass:
-            logging.debug(f"Calculating biomass for {subfolder}")
-            biomass_pbar = tqdm(total = 1, desc=f"Calculating biomass for {subfolder}", position=pbar_position, leave=False)
-            kde = KernelDensity(kernel = 'gaussian', bandwidth = 20).fit(all_pts[:, 2][:, None])
-            biomass_hist = np.exp(kde.score_samples(pos))
-            biomass_pbar.update()
-            biomass_pbar.close()
-            logging.debug(f"Finished calculating biomass for {subfolder}")
+        if args.kde:
+            import asyncio
+            async def process_kde_with_matlab(cmd):
 
-        if args.convexhull:
-            logging.debug(f"Calculating convexhull for {subfolder}")
-            convexhull_pbar = tqdm(total = 1, desc=f"Calculating convexhull for {subfolder}", position=pbar_position, leave=False)
-            kde = KernelDensity(kernel = 'gaussian', bandwidth = 20).fit(all_pts_ch[:, 2][:, None])
-            convexhull_hist = np.exp(kde.score_samples(pos))
-            convexhull_pbar.update()
-            convexhull_pbar.close()
-            logging.debug(f"Finished calculating convexhull for {subfolder}")
+                proc = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+
+                stdout, stderr = await proc.communicate()
+                logging.debug(f'[{cmd!r} exited with {proc.returncode}]')
+                if stdout:
+                    vhist_pattern = r".*(?P<vhist_type>((biomass)|(convexHull))_vhist)(?P<vhist_number>\d+)\s+(?P<vhist_value>[\d\.]+)"
+                    output = stdout.decode().split("\n")
+                    biomass_vhist = []
+                    convexhull_vhist = []
+                    for line in output:
+                        m = re.match(vhist_pattern, line)
+                        if m is not None:
+                            if 'biomass' in m.group('vhist_type'):
+                                biomass_vhist.append(m.group('vhist_value'))
+                            elif 'convex' in m.group('vhist_type'):
+                                convexhull_vhist.append(m.group('vhist_value'))
+                    logging.debug(biomass_vhist)
+                    logging.debug(convexhull_vhist)
+                    return biomass_vhist, convexhull_vhist
+                if stderr:
+                    logging.error(f'[stderr]\n{stderr.decode()}')
+
+            biomass_hist, convexhull_hist = asyncio.run(process_kde_with_matlab(f"kde-traits {os.path.join(fp, subfolder)} {thickness} {args.sampling}"))
 
         if len(solidity) < depth:
             solidity = np.append(solidity, np.zeros(int(depth-len(solidity)))) # pad with zeros for missing depth values
@@ -292,10 +303,9 @@ def process(args, fp, subfolder, scale, depth, pos, pbar_position):
         traits["Elongation"] = elong
         traits["Flatness"] = flat
         traits["Football"] = football
-        if args.biomass:
+        if args.kde:
             for i in range(1,21):
                 traits[f"Biomass_vhist{i}"] = biomass_hist[i-1]
-        if args.convexhull:
             for i in range(1,21):
                 traits[f"Convexhull_vhist{i}"] = convexhull_hist[i-1]
 
@@ -344,7 +354,6 @@ def main(args):
         pbar = tqdm(total=len(volumes), desc="Overall progress", position=0)
 
         def async_callback(*response):
-            # results.append(np.array(response).reshape(1, np.array(response).shape[0]))
             results.append(response[0]) # response is returned as a tuple
             pbar.update()
         def async_error_callback(*err):
@@ -390,7 +399,7 @@ def main(args):
                     pos = np.linspace(depth//20, depth, 20)[:, None]
                     logging.debug(pos)
 
-                    p.apply_async(process, args=(args, fp, subfolder, scale, depth, pos, pbar_position), callback=async_callback, error_callback=async_error_callback)
+                    p.apply_async(process, args=(args, fp, subfolder, thickness, scale, depth, pos, pbar_position), callback=async_callback, error_callback=async_error_callback)
 
                 p.close()
                 p.join()
