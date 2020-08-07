@@ -2,10 +2,14 @@
 Credits
 =======
 
-Development Leads
+Development Lead
 -----------------
 
 * Ni Jiang <NJiang@danforthcenter.org>
+
+Maintainer(s)
+-------------
+
 * Tim Parker <Tim.ParkerD@gmail.com>
 
 Contributors
