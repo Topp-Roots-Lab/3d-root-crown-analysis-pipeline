@@ -10,19 +10,19 @@ All notable changes to this project will be documented in this file.
 - Logging for `rootCrownSegmentation` (handled by `batch_segmentation` module)
 - Separate module for centralizing logging configuration
 - Functionality for automatically compressing VRML files to CTM using `meshlabserver` with xvfb wrapper
-- The version of `rootCrownSegmentation` included in generated OBJ files
+- The version of `rootCrownSegmentation` and calculated scale included in generated OBJ files
 
 ### Changed
 
 - Converted `rootCrownImageAnalysis3D.py` from Python version 2 to 3.8
 - Replaced multiprocessing Pool with ThreadedPool to allow for simultaneously existing progress bars (`batch_segmentation`)
 - Logs are named to the nearest second (datetime) and include the module in the filename
-- Updated log handling to match `Skeleton` v2.1.1
+- Updated log handling to match `Skeleton` v2.1.0
 - Removed `.CSV` output file for slices flagged for incorrect segmentation (see note 1)
-- Reduce default probability that a point is included in downsampled OBJ for the `qc_point_cloud` module
+- Reduced default probability that a point is included in downsampled OBJ for the `qc_point_cloud` module
 - Refactored `rootCrownSegmentation.cpp` to use more descriptive variable names and explicit comments
-- Implemented additional checks during segmentations to prevent slices of air from being segmented as root system
-- Traits calculated using kernel density estimation, i.e., biomass_vhist and convexhull_vhist) call compiled MATLAB code (use `--kde` CLI flag)
+- Implemented additional checks during segmentations to prevent slices of air from being segmented as root system (see note 2)
+- Traits calculated using kernel density estimation, i.e., biomass_vhist and convexhull_vhist, instead call compiled MATLAB code (use `--kde` flag) (see note 3)
 - Refactored reading point data from thresholded images in `rootCrownImageAnalysis3D` to reduce the number of times copies of data while minimizing the amount of allocated memory per volume (`np.append()` changed to assign data to sub-range of `numpy.array`)
 
 ### Fixed
@@ -35,7 +35,11 @@ All notable changes to this project will be documented in this file.
 
 ### Notes
 
-1.  This was removed because it provides less information than the individual TXT files that list the exact problematic slices.
+1. This was removed because it provides less information than the individual TXT files that list the exact problematic slices.
+
+2. For shallow root crowns, a narrow histogram of grayscale intensity values caused air to be segmented as root system. As a workaround, when a slice is determined to have a narrow range of values, the slice is assumed to be pure air and therefore removed. The values selected were determined by trail and error, so for future data, the value may need to be tweaked.
+
+3. The MATLAB code is now an external module that must be installed independently but is a dependency for this this tool. Its installation file is stored on the Danforth Center's cluster in the Topp lab's data repository. See <https://github.com/Topp-Roots-Lab/New3DTraitsForRPF/tree/standalone-kde-traits>.
 
 ## v1.5.0 - 2020-04-23
 
