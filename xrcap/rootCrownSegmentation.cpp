@@ -21,7 +21,7 @@ using namespace cv;
 using namespace std;
 
 const string MODULE_NAME = "rootCrownSegmentation";
-const string VERSION_NO = "1.0.0";
+const string VERSION_NO = "1.1.0";
 const string VERSION = MODULE_NAME + " " + VERSION_NO;
 
 /*
@@ -94,15 +94,32 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 
 		threshold_value = threshold(grayscale_image, binary_image, 0, 255, THRESH_TRIANGLE);
 
-		// // NOTE(tparker): Check that the threshold value has not been picked from
-		// // the darker side of the histogram, as it's very unlikely that a root
-		// // system would be less dense than the air or medium it was scanned in
-		// // As a workaround, if the threshold value is picked from the darker side,
-		// // then replace any values in the image that are darker than the median
-		// // value with the median
-		// int median = medianMat(grayscale_image);
+		// NOTE(tparker): Check that the threshold value has not been picked from
+		// the darker side of the histogram, as it's very unlikely that a root
+		// system would be less dense than the air or medium it was scanned in
+		// As a workaround, if the threshold value is picked from the darker side,
+		// then replace any values in the image that are darker than the median
+		// value with the median
+		int median = medianMat(grayscale_image);
+		double min, max;
+		cv::Point minLoc, maxLoc;
+		cv::minMaxLoc(grayscale_image, &min, &max, &minLoc, &maxLoc);
+		bool blankSliceFlag = false;
 
-		// if (threshold_value <= median)
+		// Narrow histogram check
+		// If the distance between the median and minimum is greater than the maximum and median by some factor,
+		// then the histogram is likely narrow
+		// Also, if the distance between the maximum and minimum is less than some constant value, then it is likely
+		// a narrow histogram as well
+		if ((median / max) > 0.75) {
+			count_cur = 0;
+			memset(binary_image.data, 0, size);
+			blankSliceFlag = true;
+		}
+
+		// // If the histogram is narrow, but a threshold value could be selected for root system,
+		// // then try to recover an appropriate threshold value
+		// if (!blankSliceFlag && threshold_value <= median)
 		// {
 		// 	for (int r = 0; r < grayscale_image.rows; r++)
 		// 	{
@@ -118,18 +135,28 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 		// 	threshold_value = threshold(grayscale_image, binary_image, median, 255, THRESH_TRIANGLE);
 		// }
 
-		// Compare the white pixel counts between the current slice and previous slice
+		// Get the number of white pixels for the current slice
 		count_cur = countNonZero(binary_image);
 
+		// If more than 70% of the slice is consider root system, then it likely that
+		// the wrong threshold value was selected and the medium was included
+		if (!blankSliceFlag && count_cur > (0.7 * size))
+		{
+			count_cur = 0;
+			memset(binary_image.data, 0, size);
+			blankSliceFlag = true;
+		}
+
+		// Compare the white pixel counts between the current slice and previous slice
 		// Reset the thresholded image to pure black when...
 		// 70% of the volume has been processed
 		// AND
 		// The number of white pixels on the current slice is 50 times more than the previous slice
-		// TODO(tparker): Check why 70% and 50x were selected
-		if (n > 0.7 * fn.size() && count_cur > 50 * count_prev)
+		if (!blankSliceFlag && n > 0.7 * fn.size() && count_cur > 50 * count_prev)
 		{
 			count_cur = 0;
 			memset(binary_image.data, 0, size);
+			blankSliceFlag = true;
 		}
 
 		// Update "previous" state to processed "current" state values
@@ -302,7 +329,6 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 		// 70% of the volume has been processed
 		// AND
 		// The number of white pixels on the current slice is 50 times more than the previous slice
-		// TODO(tparker): Check why this was included
 		if (n > 0.7 * fn.size() && count_cur_root > 50 * count_prev_root)
 		{
 			count_cur_root = 0;

@@ -1,7 +1,0 @@
-numpy
-Pillow
-tqdm
-scikit-image
-scikit-learn
-opencv-python
-pandas

@@ -2,13 +2,13 @@
 
 ## CentOS 8 Guide
 
-Base on this CentOS 7 guide: https://www.vultr.com/docs/how-to-install-opencv-on-centos-7
+Base on this CentOS 7 guide: <https://www.vultr.com/docs/how-to-install-opencv-on-centos-7>
 
 ### Dependencies
 
 #### System-level dependencies
 
-```bash
+```{.sourceCode .bash}
 dnf install python2-devel python3-devel gcc gcc-c++
 ```
 
@@ -16,7 +16,7 @@ dnf install python2-devel python3-devel gcc gcc-c++
 
 ##### Step 1: Install dependencies for OpenCV
 
-```bash
+```{.sourceCode .bash}
 # Add Okay repo for libav-devel
 dnf install http://repo.okay.com.mx/centos/8/x86_64/release/okay-release-1-3.el8.noarch.rpm
 dnf install gtk3-devel gstreamer1-devel gstreamer1-plugins-base-devel libdc1394-devel libgphoto2-devel libav-devel cmake
@@ -24,14 +24,14 @@ dnf install gtk3-devel gstreamer1-devel gstreamer1-plugins-base-devel libdc1394-
 
 ##### Step 2: Download the OpenCV 3.3.0 archive
 
-```bash
+```{.sourceCode .bash}
 wget https://github.com/opencv/opencv/archive/3.2.0.zip
 unzip 3.2.0.zip
 ```
 
 ##### Step 3: Compile and install OpenCV 3.3.0
 
-```bash
+```{.sourceCode .bash}
 cd opencv-3.2.0
 mkdir -v build && cd build
 cmake -D CMAKE_BUILD_TYPE=DEBUG -D CMAKE_INSTALL_PREFIX=/usr/local ..
@@ -41,7 +41,7 @@ make install
 
 ##### Step 4: Configure required variables
 
-```bash
+```{.sourceCode .bash}
 export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig/
 echo '/usr/local/lib/' >> /etc/ld.so.conf.d/opencv.conf
 ldconfig
@@ -49,7 +49,7 @@ ldconfig
 
 ##### Step 5 (optional): Run tests
 
-```bash
+```{.sourceCode .bash}
 cd
 git clone https://github.com/opencv/opencv_extra.git
 export OPENCV_TEST_DATA_PATH=/root/opencv_extra/testdata
@@ -61,9 +61,9 @@ ls
 ./opencv_test_photo
 ```
 
-### Core files
+## Core files
 
-```bash
+```{.sourceCode .bash}
 # Clone repo
 git clone https://github.com/Topp-Roots-Lab/3d-root-crown-analysis-pipeline.git /opt/3drcap/
 # Create symlinks in /usr/local/bin
@@ -73,19 +73,19 @@ pip install -r /opt/3drcap/requirements.txt
 pip2 install -r /opt/3drcap/requirements.txt
 ```
 
-## Ubuntu 18.04 Guide
+# Ubuntu 18.04 Guide
 
-### Dependencies
+## Dependencies
 
-#### System-level dependencies
+### System-level dependencies
 
-```bash
+```{.sourceCode .bash}
 apt install libopencv-core3.2 libopencv-imgcodecs3.2 python2.7 python2.7-dev python3 python3-dev gcc g++
 ```
 
-### Core files
+## Core files
 
-```bash
+```{.sourceCode .bash}
 # Clone repo
 git clone https://github.com/Topp-Roots-Lab/3d-root-crown-analysis-pipeline.git /opt/3drcap/
 # Create symlinks in /usr/local/bin
@@ -95,8 +95,8 @@ pip install -r /opt/3drcap/requirements.txt
 pip2 install -r /opt/3drcap/requirements.txt
 ```
 
-### Compile C++ Binaries
+## Compile C++ Binaries
 
-```bash
-g++ -o bin/rootCrownSegmentation src/rootCrownSegmentation.cpp -lopencv_highgui -lopencv_imgcodecs -lopencv_imgproc -lopencv_core -lboost_system -lboost_filesystem -lboost_program_options
+```{.sourceCode .bash}
+g++ -o xrcap/lib/rootCrownSegmentation xrcap/rootCrownSegmentation.cpp -lopencv_highgui -lopencv_imgcodecs -lopencv_imgproc -lopencv_core -lboost_system -lboost_filesystem -lboost_program_options
 ```
