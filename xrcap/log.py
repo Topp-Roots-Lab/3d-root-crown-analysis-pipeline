@@ -2,6 +2,7 @@
 """Logging module"""
 import logging
 import os
+import stat
 from datetime import datetime as dt
 from importlib.metadata import version
 
@@ -33,9 +34,8 @@ def configure(args):
 	fileHandler.setLevel(logging.DEBUG) # always show debug statements in log file
 	rootLogger.addHandler(fileHandler)
 
-	sdfp = os.path.join('/', 'var', 'log', 'rawtools', args.module_name) # system directory file path
-	if not os.path.exists(sdfp):
-		os.makedirs(sdfp)
+	sys_directory = '/var/log/xrcap'
+	sdfp = os.path.join(sys_directory, args.module_name) # system directory 
 	slfp = os.path.join(sdfp, logfile_basename) # system log file path
 	syslogFileHandler = logging.FileHandler(slfp)
 	syslogFileHandler.setFormatter(logFormatter)

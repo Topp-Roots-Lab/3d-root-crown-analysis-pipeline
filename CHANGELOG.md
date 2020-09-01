@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.6.1 - 2020-08-31
+
+### Changed
+
+- Simplified installation and updating to use Makefile
+
+### Fixed
+
+- Location of system copies of log files to `/var/log/xrcap` as intended
+
 ## v1.6.0 - 2020-07-30
 
 ### Added
