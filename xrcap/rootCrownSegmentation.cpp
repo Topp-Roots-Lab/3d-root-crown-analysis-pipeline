@@ -107,116 +107,6 @@ float stddev(std::vector<uint8_t> &arr)
 }
 
 /*
- * Adjust an image based on the mode value of circular regions of interest
- * about the axis of rotation of the image
- * 
- * @param cv::Mat image
- * @param int thickness pixel thickness of circle
- * @param int aggressiveness the number of std. dev. to consider when updating values to the mode value
- * @return cv::Mat adjusted slice
- */
-void radial_adjust(cv::Mat &img, cv::Mat &dst, int thickness = 20, int aggressiveness = 400)
-{
-	// Make sure that the image isn't empty
-	if (img.empty())
-	{
-		std::exit(1);
-	}
-
-	cv::Size shape = img.size();
-	const int width = shape.width;
-	const int height = shape.height;
-	const int depth = img.depth();
-	cv::Point center = cv::Point(width / 2, height / 2);
-	double minVal;
-	double maxVal;
-	Point minLoc;
-	Point maxLoc;
-
-	cv::minMaxLoc(img, &minVal, &maxVal, &minLoc, &maxLoc);
-
-	cout << "min val: " << minVal << endl;
-	cout << "max val: " << maxVal << endl;
-
-	std::cout << "Dimensions (input): " << shape << std::endl;
-	std::cout << "Center (input): " << center << std::endl;
-
-	// Check for correct bit-depth (uint16)
-	if (depth != CV_8U)
-	{
-		std::cout << "[Error] - Line " << __LINE__ << ": Image bit-depth is " << depth << ". Excpected unsigned 16-bit integer." << std::endl;
-		std::exit(1);
-	}
-
-	cout << "Do the adjustment" << endl;
-	// Adjusted slice (result)
-	cv::Mat adjusted_img = cv::Mat(img.size(), img.type());
-	img.copyTo(adjusted_img);
-	cout << "Copied adjusted img" << endl;
-
-	const int limit = (std::max(width, height)) / 2 - thickness;
-	int radius;
-	// For each circular distance from the center, collect coordinate and values
-	std::cout << "Limit: " << limit << std::endl;
-	// return adjusted_img;
-	for (radius = 2; radius < limit; radius += 2)
-	{
-		cout << "Checking radius: " << radius << endl;
-		// Create a circular mask
-		cv::Mat mask = cv::Mat::zeros(img.size(), img.type());
-		cv::circle(mask, center, radius, cv::Scalar(255, 255, 255), thickness);
-
-		// Get points on circular mask
-		// All points in the mask
-		std::vector<cv::Point> mask_pts;
-		cv::Point coordinates;
-		// All values on the original slice
-		std::vector<uint8_t> slice_values;
-		// Temporary point on original slice and mask, respectively.
-		uint8_t *pt, *mpt;
-		for (int row = 0; row < height; row++)
-		{
-			for (int col = 0; col < width; col++)
-			{
-				coordinates = cv::Point(row, col);
-				// cout << "Coordinates: " << coordinates << std::endl;
-				slice_values.push_back(img.at<uint8_t>(coordinates));
-				mask_pts.push_back(coordinates);
-			}
-		}
-
-		// Calculate mode
-		uint8_t mode_value = mode(slice_values);
-		// Calculate standard of deviation
-		uint8_t sdev = uint8_t(stddev(slice_values));
-		uint8_t sdev_min = mode_value - sdev;
-		uint8_t sdev_max = mode_value + sdev;
-
-		printf("<mode: %hhu, sdev: %hhu, sdev_min: %hhu, sdev_max: %hhu>\n", mode_value, sdev, sdev_min, sdev_max);
-
-		// Adjust slice based on distribution of intensity values
-		// The goal is to reduce the amount of noise for each pixel distance
-		// from the rotation of axis
-		uint8_t stddev_threshold = uint8_t(maxVal * 0.90);
-		uint8_t tmp;
-		for (int i = 0; i < mask_pts.size(); i++)
-		{
-			coordinates = mask_pts[i];
-			// std::cout << "Check mask points: " << coordinates << std::endl;
-			tmp = img.at<uint8_t>(coordinates);
-
-			// If the pixel is within N standard(s) of deviation above the mode
-			// value, then reset it to the mode. This is to help with segmentation
-			// using the triangle method.
-			if (tmp <= stddev_threshold)
-				adjusted_img.at<uint8_t>(coordinates) = scale(tmp, 0, UINTMAX_MAX, sdev_min, mode_value);
-		}
-	}
-	std::cout << "Return adjusted image" << std::endl;
-	adjusted_img.copyTo(img);
-}
-
-/*
  * Convert grayscale images to binary images
  *
  * @param grayscale_images_directory Filepath to grayscale images directory
@@ -267,7 +157,9 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 		resize(grayscale_image, grayscale_image, Size(), scale, scale, INTER_LINEAR);
 		Mat binary_image; // thresholded image data
 
-		threshold_value = threshold(grayscale_image, binary_image, 0, 255, THRESH_TRIANGLE);
+		threshold_value = threshold(grayscale_image, binary_image, 0, 255, CV_THRESH_TRIANGLE);
+		printf("Threshold value: %f\n", threshold_value);
+		// cv::circle(binary_image, cv::Point(rows / 2, cols / 2), 100, cv::Scalar(255, 255, 255), CV_FILLED, LINE_AA);
 
 		// NOTE(tparker): Check that the threshold value has not been picked from
 		// the darker side of the histogram, as it's very unlikely that a root
@@ -293,32 +185,46 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 			blankSliceFlag = true;
 		}
 
-		// // If the histogram is narrow, but a threshold value could be selected for root system,
-		// // then try to recover an appropriate threshold value
-		// if (!blankSliceFlag && threshold_value <= median)
-		// {
-		// 	for (int r = 0; r < grayscale_image.rows; r++)
-		// 	{
-		// 		for (int c = 0; c < grayscale_image.cols; c++)
-		// 		{
-		// 			if (grayscale_image.at<uint8_t>(r, c) < (uint8_t)median && (uint8_t)grayscale_image.at<uint8_t>(r, c) != (uint8_t)0)
-		// 			{
-		// 				grayscale_image.at<uint8_t>(r, c) = (uint8_t)median;
-		// 			}
-		// 		}
-		// 	}
-		// 	// Redo the threshold with the modified image
-		// 	threshold_value = threshold(grayscale_image, binary_image, median, 255, THRESH_TRIANGLE);
-		// }
+		// Check for 'circle' artifact at the upper and lower bounds of the object
+		// A circular artifact appears to happen when there is noise near the top
+		// or bottom of an object in a scan.
+		if (!blankSliceFlag)
+		{
+			vector<Vec3f> circular_artifacts;
+			double dp = 1;
+			double minDist = binary_image.rows / 16;
+			double param1 = std::min(rows, cols) / 4;
+			double param2 = 100;
+			int minRadius = 20;
+			int maxRadius = std::min(rows, cols) / 4;
+			cv::HoughCircles(binary_image, circular_artifacts, HOUGH_GRADIENT, dp, param1, param2, minRadius, maxRadius);
 
-		// // Test - Adjusting slice
-		// // if (!blankSliceFlag)
-		// // {
-		// cout << "Adjust slice" << endl;
-		radial_adjust(grayscale_image, grayscale_image);
-		// cout << "Adjusted" << endl;
-		// // }
-		threshold_value = threshold(grayscale_image, binary_image, 0, 255, THRESH_OTSU);
+			// cv::Mat previewImg = cv::Mat(grayscale_image.size(), )
+			for (size_t i = 0; i < circular_artifacts.size(); i++)
+			{
+				printf("Circle count: %lu\n", circular_artifacts.size());
+				cv::Vec3i c = circular_artifacts[i];
+				Point center = Point(c[0], c[1]);
+				// circle(binary_image, center, 1, cv::Scalar(255, 255, 255), 3, LINE_AA);
+				int radius = c[2];
+				cv::circle(binary_image, center, radius, cv::Scalar(255, 255, 255), 1, LINE_AA);
+				std::cout << "Circle found: " << c << std::endl;
+			}
+			cv::namedWindow("CIRCLE DETECTION", cv::WINDOW_NORMAL);
+			cv::resizeWindow("CIRCLE DETECTION", 500, 500);
+			cv::imshow("CIRCLE DETECTION", binary_image);
+			cv::waitKey(0);
+			cv::namedWindow("CIRCLE DETECTION", cv::WINDOW_NORMAL);
+			cv::resizeWindow("CIRCLE DETECTION", 500, 500);
+			cv::imshow("CIRCLE DETECTION", grayscale_image);
+			int k = cv::waitKey(0);
+			if (k == 's')
+			{
+				cv::imwrite("output.tiff", grayscale_image);
+			}
+
+			// threshold_value = threshold(grayscale_image, binary_image, 0, 255, THRESH_OTSU);
+		}
 
 		// Get the number of white pixels for the current slice
 		count_cur = countNonZero(binary_image);
