@@ -107,6 +107,71 @@ float stddev(std::vector<uint8_t> &arr)
 }
 
 /*
+ * Check for circular artifact in a slice
+ *
+ * The matrix is a 
+ * 
+ * @param cv::Mat* binary image
+ * @return `true` or `false`, whether a circle artifact is detected
+ */
+bool hasCircularArtifact(cv::Mat &img)
+{
+	// Base case: no image
+	if (img.empty())
+	{
+		return false;
+	}
+
+	cv::Size shape = img.size();
+	const int width = shape.width;
+	const int height = shape.height;
+	const int depth = img.depth();
+	cv::Point center = cv::Point(width / 2, height / 2);
+
+	const int minRadius = ((std::min(width, height)) / 10);
+	const int maxRadius = ((std::min(width, height)) / 2) - 1;
+	int radius;
+	// For each possible radius of a circle on the image, from largest to
+	// smallest, check proportion of white pixels
+	std::cout << "Min/max radii: [" << minRadius << ", " << maxRadius << "]" << std::endl;
+	for (radius = maxRadius; radius >= minRadius; radius--)
+	{
+		// Create a circular mask
+		cv::Mat mask = cv::Mat::zeros(img.size(), img.type());
+		cv::circle(mask, center, radius, cv::Scalar(255, 255, 255), CV_FILLED);
+		const int maskWhitePixelCount = cv::countNonZero(mask);
+
+		// Create temporary image
+		cv::Mat adjustedImage = cv::Mat::zeros(img.size(), img.type());
+		img.copyTo(adjustedImage, mask);
+
+		std::string basename = "/home/tparker/Datasets/topp/xrt/debug/data_thresholded_images/";
+		cv::imwrite("/home/tparker/Datasets/topp/xrt/debug/data_thresholded_images/binary" + std::to_string(radius) + ".png", img);
+		cv::imwrite("/home/tparker/Datasets/topp/xrt/debug/data_thresholded_images/mask" + std::to_string(radius) + ".png", mask);
+		cv::imwrite("/home/tparker/Datasets/topp/xrt/debug/data_thresholded_images/binary+mask" + std::to_string(radius) + ".png", adjustedImage);
+		const int adjustedImageWhitePixelCount = cv::countNonZero(adjustedImage);
+		std::cout << "Radius: " << radius << std::endl;
+		std::cout << "Mask White Pixel Count: " << maskWhitePixelCount << std::endl;
+		std::cout << "Adjusted White Pixel Count: " << adjustedImageWhitePixelCount << std::endl;
+
+		float whitePixelRatio = (float(adjustedImageWhitePixelCount) / maskWhitePixelCount);
+		std::cout << "White Pixel Ratio: " << whitePixelRatio << std::endl;
+
+		// Check for a reasonably dense and high proportion of white pixels
+		// given a radius of around the center of the image
+		if (whitePixelRatio > 0.80)
+		{
+			std::cout << "Flagged for circular artifact for radius '" << radius << "', " << whitePixelRatio << std::endl;
+			return true;
+		}
+	}
+	// Otherwise, it's not reasonable to assume that any flagged pixels are
+	// make up a circular artifact
+	std::cout << "Passed!" << std::endl;
+	return false;
+}
+
+/*
  * Convert grayscale images to binary images
  *
  * @param grayscale_images_directory Filepath to grayscale images directory
@@ -157,9 +222,9 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 		resize(grayscale_image, grayscale_image, Size(), scale, scale, INTER_LINEAR);
 		Mat binary_image; // thresholded image data
 
-		threshold_value = threshold(grayscale_image, binary_image, 0, 255, CV_THRESH_TRIANGLE);
+		// threshold_value = threshold(grayscale_image, binary_image, 0, 255, CV_THRESH_TRIANGLE);
+		threshold_value = threshold(grayscale_image, binary_image, 12, 255, THRESH_BINARY);
 		printf("Threshold value: %f\n", threshold_value);
-		// cv::circle(binary_image, cv::Point(rows / 2, cols / 2), 100, cv::Scalar(255, 255, 255), CV_FILLED, LINE_AA);
 
 		// NOTE(tparker): Check that the threshold value has not been picked from
 		// the darker side of the histogram, as it's very unlikely that a root
@@ -188,42 +253,44 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 		// Check for 'circle' artifact at the upper and lower bounds of the object
 		// A circular artifact appears to happen when there is noise near the top
 		// or bottom of an object in a scan.
-		if (!blankSliceFlag)
+		if (!blankSliceFlag && hasCircularArtifact(binary_image))
 		{
-			vector<Vec3f> circular_artifacts;
-			double dp = 1;
-			double minDist = binary_image.rows / 16;
-			double param1 = std::min(rows, cols) / 4;
-			double param2 = 100;
-			int minRadius = 20;
-			int maxRadius = std::min(rows, cols) / 4;
-			cv::HoughCircles(binary_image, circular_artifacts, HOUGH_GRADIENT, dp, param1, param2, minRadius, maxRadius);
+			// std::cout << "Flagged for circular artifact!" << std::endl;
+			int k;
+			std::string fileinput = "Original";
+			// cv::namedWindow(fileinput, cv::WINDOW_NORMAL);
+			// cv::resizeWindow(fileinput, 500, 500);
+			// cv::imshow(fileinput, grayscale_image);
+			// k = cv::waitKey(0);
 
-			// cv::Mat previewImg = cv::Mat(grayscale_image.size(), )
-			for (size_t i = 0; i < circular_artifacts.size(); i++)
-			{
-				printf("Circle count: %lu\n", circular_artifacts.size());
-				cv::Vec3i c = circular_artifacts[i];
-				Point center = Point(c[0], c[1]);
-				// circle(binary_image, center, 1, cv::Scalar(255, 255, 255), 3, LINE_AA);
-				int radius = c[2];
-				cv::circle(binary_image, center, radius, cv::Scalar(255, 255, 255), 1, LINE_AA);
-				std::cout << "Circle found: " << c << std::endl;
-			}
-			cv::namedWindow("CIRCLE DETECTION", cv::WINDOW_NORMAL);
-			cv::resizeWindow("CIRCLE DETECTION", 500, 500);
-			cv::imshow("CIRCLE DETECTION", binary_image);
-			cv::waitKey(0);
-			cv::namedWindow("CIRCLE DETECTION", cv::WINDOW_NORMAL);
-			cv::resizeWindow("CIRCLE DETECTION", 500, 500);
-			cv::imshow("CIRCLE DETECTION", grayscale_image);
-			int k = cv::waitKey(0);
-			if (k == 's')
-			{
-				cv::imwrite("output.tiff", grayscale_image);
-			}
+			int triangle_threshold_value = threshold_value;
+			std::cout << "Triangle Treshold: " << triangle_threshold_value << std::endl;
+			fileinput = "Triangle";
+			// cv::namedWindow(fileinput, cv::WINDOW_NORMAL);
+			// cv::resizeWindow(fileinput, 500, 500);
+			// cv::imshow(fileinput, binary_image);
+			// k = cv::waitKey(0);
 
-			// threshold_value = threshold(grayscale_image, binary_image, 0, 255, THRESH_OTSU);
+			threshold_value = threshold(grayscale_image, binary_image, 0, 255, THRESH_OTSU);
+			int otsu_threshold_value = threshold_value;
+			std::cout << "Otsu Treshold: " << otsu_threshold_value << std::endl;
+			fileinput = "Otsu";
+			// cv::namedWindow(fileinput, cv::WINDOW_NORMAL);
+			// cv::resizeWindow(fileinput, 500, 500);
+			// cv::imshow(fileinput, binary_image);
+			// k = cv::waitKey(0);
+
+			int adjusted_thresholed_value = floor((triangle_threshold_value + otsu_threshold_value) / 2.0);
+			threshold_value = threshold(grayscale_image, binary_image, adjusted_thresholed_value, 255, THRESH_BINARY);
+			std::cout << "Adjusted Threshold: " << threshold_value << std::endl;
+			fileinput = "Adjusted";
+			// cv::namedWindow(fileinput, cv::WINDOW_NORMAL);
+			// cv::resizeWindow(fileinput, 500, 500);
+			// cv::imshow(fileinput, binary_image);
+			// k = cv::waitKey(0);
+
+			// exit(0);
+			cv::imwrite("/home/tparker/Datasets/topp/xrt/debug/data_thresholded_images/result_" + std::to_string(n) + ".png", binary_image);
 		}
 
 		// Get the number of white pixels for the current slice
@@ -272,7 +339,7 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 		// Write thresholded binary image to disk
 		string filename = fn[n].substr(fn[n].find_last_of("/") + 1);
 		imwrite(binary_images_directory + filename, binary_image);
-		cout << "Write bin2ary image '" << filename << "'" << endl;
+		cout << "Write binary image '" << filename << "'" << endl;
 	}
 
 	// Update vertex count and version for OUT file
