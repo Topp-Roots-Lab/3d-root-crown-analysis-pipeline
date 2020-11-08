@@ -33,7 +33,7 @@ def segment():
     parser.add_argument("-n", "--dry-run", dest='dryrun', action="store_true", help="*Not yet implemented.* Perform a trial run. Do not create image files, but logs will be updated.")
     parser.add_argument("--progress", action="store_true", help="Enables multiple progress bar, one for each volume during processing.")
     parser.add_argument('--soil', action='store_true', help="Extract any soil during segmentation.")
-    parser.add_argument('-s', "--sampling", help="resolution parameter", default=2)
+    parser.add_argument('-s', "--sampling", type=int, help="resolution parameter", default=2)
     parser.add_argument("path", metavar='PATH', type=str, nargs=1, help='Input directory to process')
     args = parser.parse_args()
 
