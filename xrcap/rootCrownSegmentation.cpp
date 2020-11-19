@@ -1,7 +1,7 @@
 /*****************************/
 /*Created on Nov 29, 2018*****/
 /*
-/*@author: njiang
+/*@author: njiang, tparker
 /*****************************/
 
 #include <iostream>
@@ -22,7 +22,7 @@ using namespace cv;
 using namespace std;
 
 const string MODULE_NAME = "rootCrownSegmentation";
-const string VERSION_NO = "1.1.0";
+const string VERSION_NO = "1.1.1";
 const string VERSION = MODULE_NAME + " " + VERSION_NO;
 
 /*
@@ -114,13 +114,17 @@ float stddev(std::vector<uint8_t> &arr)
  * @param cv::Mat* binary image
  * @return `true` or `false`, whether a circle artifact is detected
  */
-bool hasCircularArtifact(cv::Mat &img)
+bool hasCircularArtifact(int slice_index, cv::Mat &data)
 {
 	// Base case: no image
-	if (img.empty())
+	if (data.empty())
 	{
 		return false;
 	}
+
+	// Make a temporary copy of the binary image to work on
+	cv::Mat img = cv::Mat(data.size(), data.type());
+	data.copyTo(img);
 
 	cv::Size shape = img.size();
 	const int width = shape.width;
@@ -128,46 +132,72 @@ bool hasCircularArtifact(cv::Mat &img)
 	const int depth = img.depth();
 	cv::Point center = cv::Point(width / 2, height / 2);
 
-	const int minRadius = ((std::min(width, height)) / 10);
-	const int maxRadius = ((std::min(width, height)) / 2) - 1;
-	int radius;
+	const int minRadius = ((std::min(width, height)) / 15);
+	const int maxRadius = ((std::min(width, height)) / 4) - 1;
 	// For each possible radius of a circle on the image, from largest to
 	// smallest, check proportion of white pixels
-	std::cout << "Min/max radii: [" << minRadius << ", " << maxRadius << "]" << std::endl;
-	for (radius = maxRadius; radius >= minRadius; radius--)
+	// std::cout << "Min/max radii: [" << minRadius << ", " << maxRadius << "]" << std::endl;
+	// std::cout << "Radius,Pixel Count (src + inner),Pixel Count (mask + inner),Ratio (inner),Pixel Count (src + outer),Pixel Count (mask + outer),Ratio (outer)" << std::endl;
+
+	// Decrementing value used to search for circular artifacts instead
+	// of just search 1 by 1 resulting in a O(n) runtime.
+	int radius;
+	int last_checked_radius = maxRadius;
+	int searchRate = 1;
+	// Key that was pressed while waiting for cv::waitKey() calls
+	int keyCode;
+	for (radius = minRadius; radius <= maxRadius; radius += minRadius)
 	{
-		// Create a circular mask
+		// Inner mask
 		cv::Mat mask = cv::Mat::zeros(img.size(), img.type());
 		cv::circle(mask, center, radius, cv::Scalar(255, 255, 255), CV_FILLED);
-		const int maskWhitePixelCount = cv::countNonZero(mask);
+		const int mask_white_pixel_count = cv::countNonZero(mask);
 
-		// Create temporary image
-		cv::Mat adjustedImage = cv::Mat::zeros(img.size(), img.type());
-		img.copyTo(adjustedImage, mask);
+		// Outer mask
+		cv::Mat inverted_mask = cv::Mat::zeros(img.size(), img.type());
+		cv::bitwise_not(mask, inverted_mask);
+		const int inverted_mask_white_pixel_count = cv::countNonZero(inverted_mask);
 
-		std::string basename = "/home/tparker/Datasets/topp/xrt/debug/data_thresholded_images/";
-		cv::imwrite("/home/tparker/Datasets/topp/xrt/debug/data_thresholded_images/binary" + std::to_string(radius) + ".png", img);
-		cv::imwrite("/home/tparker/Datasets/topp/xrt/debug/data_thresholded_images/mask" + std::to_string(radius) + ".png", mask);
-		cv::imwrite("/home/tparker/Datasets/topp/xrt/debug/data_thresholded_images/binary+mask" + std::to_string(radius) + ".png", adjustedImage);
-		const int adjustedImageWhitePixelCount = cv::countNonZero(adjustedImage);
-		std::cout << "Radius: " << radius << std::endl;
-		std::cout << "Mask White Pixel Count: " << maskWhitePixelCount << std::endl;
-		std::cout << "Adjusted White Pixel Count: " << adjustedImageWhitePixelCount << std::endl;
+		// Copy input matrix's contents within inner mask
+		// Binary representation of
+		cv::Mat masked_binary_image = cv::Mat::zeros(img.size(), img.type());
 
-		float whitePixelRatio = (float(adjustedImageWhitePixelCount) / maskWhitePixelCount);
-		std::cout << "White Pixel Ratio: " << whitePixelRatio << std::endl;
+		img.copyTo(masked_binary_image, mask);
+		// Copy input matrix's contents within outer mask
+		cv::Mat inverted_masked_binary_image = cv::Mat::zeros(img.size(), img.type());
+		img.copyTo(inverted_masked_binary_image, inverted_mask);
+
+		// Gather white pixels within inner ROI and dilate them
+		// This is to accecuate the existant of a circle
+
+		cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+		cv::Mat tmp = cv::Mat(masked_binary_image.size(), masked_binary_image.type());
+		cv::dilate(masked_binary_image, tmp, kernel, cv::Point(-1, -1), 3);
+		tmp.copyTo(masked_binary_image);
+
+		const int masked_binary_image_white_pixel_count = cv::countNonZero(masked_binary_image);
+		const int inverted_masked_binary_image_white_pixel_count = cv::countNonZero(inverted_masked_binary_image);
+		double inner_mask_white_pixel_ratio = (double(masked_binary_image_white_pixel_count) / mask_white_pixel_count);
+		double outer_mask_white_pixel_ratio = (double(inverted_masked_binary_image_white_pixel_count) / inverted_mask_white_pixel_count);
+
+		// printf("%d,%d,%d,%d,%0.13f,%d,%d,%0.13f\n", slice_index, radius, masked_binary_image_white_pixel_count, mask_white_pixel_count, inner_mask_white_pixel_ratio, inverted_masked_binary_image_white_pixel_count, inverted_mask_white_pixel_count, outer_mask_white_pixel_ratio);
+
+		if (inner_mask_white_pixel_ratio < 0.05)
+		{
+			return false;
+		}
 
 		// Check for a reasonably dense and high proportion of white pixels
 		// given a radius of around the center of the image
-		if (whitePixelRatio > 0.80)
+		// if (inner_mask_white_pixel_ratio > 0.20 && outer_mask_white_pixel_ratio < 0.10)
+		if (inner_mask_white_pixel_ratio > 0.80)
 		{
-			std::cout << "Flagged for circular artifact for radius '" << radius << "', " << whitePixelRatio << std::endl;
+			// printf("%d,%d,%d,%d,%0.13f,%d,%d,%0.13f\n", slice_index, radius, masked_binary_image_white_pixel_count, mask_white_pixel_count, inner_mask_white_pixel_ratio, inverted_masked_binary_image_white_pixel_count, inverted_mask_white_pixel_count, outer_mask_white_pixel_ratio);
 			return true;
 		}
 	}
 	// Otherwise, it's not reasonable to assume that any flagged pixels are
 	// make up a circular artifact
-	std::cout << "Passed!" << std::endl;
 	return false;
 }
 
@@ -210,21 +240,22 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 	size = rows * cols;
 
 	double threshold_value; // grayscale value selected as threshold value
-	int id;									// inverted slice index because roots are usually scanned upside down
+	int id;					// inverted slice index because roots are usually scanned upside down
 
 	int count_cur, count_prev = 0, count_prev2 = 0; // white pixel counter(s)
 
 	// For each grayscale image...
-	for (int n = 0; n < fn.size(); n += sampling)
+	int slice_count = fn.size();
+	for (int n = 0; n < slice_count; n += sampling)
 	{
-		id = fn.size() - n;
+		std::string thresholding_method = "triangle";
+		id = slice_count - n;
 		Mat grayscale_image = imread(fn[n], CV_LOAD_IMAGE_GRAYSCALE);
 		resize(grayscale_image, grayscale_image, Size(), scale, scale, INTER_LINEAR);
 		Mat binary_image; // thresholded image data
 
-		// threshold_value = threshold(grayscale_image, binary_image, 0, 255, CV_THRESH_TRIANGLE);
-		threshold_value = threshold(grayscale_image, binary_image, 12, 255, THRESH_BINARY);
-		printf("Threshold value: %f\n", threshold_value);
+		threshold_value = threshold(grayscale_image, binary_image, 0, 255, CV_THRESH_TRIANGLE);
+		// printf("Threshold value: %f\n", threshold_value);
 
 		// NOTE(tparker): Check that the threshold value has not been picked from
 		// the darker side of the histogram, as it's very unlikely that a root
@@ -253,44 +284,39 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 		// Check for 'circle' artifact at the upper and lower bounds of the object
 		// A circular artifact appears to happen when there is noise near the top
 		// or bottom of an object in a scan.
-		if (!blankSliceFlag && hasCircularArtifact(binary_image))
+		if (!blankSliceFlag && ((n < (slice_count * 0.05) || n > (slice_count * 0.70)) && hasCircularArtifact(n, binary_image)))
 		{
 			// std::cout << "Flagged for circular artifact!" << std::endl;
-			int k;
-			std::string fileinput = "Original";
-			// cv::namedWindow(fileinput, cv::WINDOW_NORMAL);
-			// cv::resizeWindow(fileinput, 500, 500);
-			// cv::imshow(fileinput, grayscale_image);
-			// k = cv::waitKey(0);
-
 			int triangle_threshold_value = threshold_value;
-			std::cout << "Triangle Treshold: " << triangle_threshold_value << std::endl;
-			fileinput = "Triangle";
-			// cv::namedWindow(fileinput, cv::WINDOW_NORMAL);
-			// cv::resizeWindow(fileinput, 500, 500);
-			// cv::imshow(fileinput, binary_image);
-			// k = cv::waitKey(0);
+			// std::cout << "Triangle Treshold: " << triangle_threshold_value << std::endl;
 
-			threshold_value = threshold(grayscale_image, binary_image, 0, 255, THRESH_OTSU);
-			int otsu_threshold_value = threshold_value;
-			std::cout << "Otsu Treshold: " << otsu_threshold_value << std::endl;
-			fileinput = "Otsu";
-			// cv::namedWindow(fileinput, cv::WINDOW_NORMAL);
-			// cv::resizeWindow(fileinput, 500, 500);
-			// cv::imshow(fileinput, binary_image);
-			// k = cv::waitKey(0);
+			int otsu_threshold_value = threshold(grayscale_image, binary_image, 0, 255, THRESH_OTSU);
+			// std::cout << "Otsu Treshold: " << otsu_threshold_value << std::endl;
 
 			int adjusted_thresholed_value = floor((triangle_threshold_value + otsu_threshold_value) / 2.0);
-			threshold_value = threshold(grayscale_image, binary_image, adjusted_thresholed_value, 255, THRESH_BINARY);
-			std::cout << "Adjusted Threshold: " << threshold_value << std::endl;
-			fileinput = "Adjusted";
-			// cv::namedWindow(fileinput, cv::WINDOW_NORMAL);
-			// cv::resizeWindow(fileinput, 500, 500);
-			// cv::imshow(fileinput, binary_image);
-			// k = cv::waitKey(0);
+			adjusted_thresholed_value = otsu_threshold_value;
 
-			// exit(0);
-			cv::imwrite("/home/tparker/Datasets/topp/xrt/debug/data_thresholded_images/result_" + std::to_string(n) + ".png", binary_image);
+			// In the rare instance that Otsu's method picks a darker threshold, default
+			// to the triangle method's result instead, as the higher the threshold, the
+			// less aggressive of thresholding.
+			if (otsu_threshold_value < triangle_threshold_value)
+			{
+				adjusted_thresholed_value = triangle_threshold_value;
+			}
+			threshold_value = threshold(grayscale_image, binary_image, adjusted_thresholed_value, 255, THRESH_BINARY);
+			// std::cout << "Adjusted Threshold: " << threshold_value << std::endl;
+
+			// TODO(tparker): When the circle is still there!
+			// If the circular artifact is still present after
+			if (hasCircularArtifact(n, binary_image))
+			{
+				threshold_value = threshold(grayscale_image, binary_image, otsu_threshold_value, 255, THRESH_BINARY);
+				thresholding_method = "Otsu";
+			}
+			else
+			{
+				thresholding_method = "Adjusted (mean of triangle & otsu)";
+			}
 		}
 
 		// Get the number of white pixels for the current slice
@@ -317,6 +343,7 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 			blankSliceFlag = true;
 		}
 
+		std::cout << "Slice '" << n << "' segmented with " << thresholding_method << " (" << threshold_value << ")" << std::endl;
 		// Update "previous" state to processed "current" state values
 		count_prev = count_cur;
 
@@ -368,7 +395,7 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 int segment(string grayscale_images_directory, int sampling, string binary_images_directory, string filepath_out, string filepath_obj, string filepath_out_soil, string filepath_obj_soil)
 {
 	// Initialize OUT files
-	FILE *Outfp_root = fopen(filepath_out.c_str(), "w");			// Root .OUT file handler
+	FILE *Outfp_root = fopen(filepath_out.c_str(), "w");	  // Root .OUT file handler
 	FILE *Outfp_soil = fopen(filepath_out_soil.c_str(), "w"); // Soil .OUT file handler
 
 	int numVert_root = 0;
@@ -379,7 +406,7 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 	fprintf(Outfp_soil, "%20d\n", numVert_soil);
 
 	// Initialize OBJ files
-	FILE *Objfp_root = fopen(filepath_obj.c_str(), "w");			// Root .OBJ file handler
+	FILE *Objfp_root = fopen(filepath_obj.c_str(), "w");	  // Root .OBJ file handler
 	FILE *Objfp_soil = fopen(filepath_obj_soil.c_str(), "w"); // Soil .OBJ file handler
 
 	// Gather list of all grayscale images
@@ -403,14 +430,14 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 	memset(temp.data, 0, size);
 
 	double soil_threshold_value, root_threshold_value; // grayscale intensity value
-	int id;																						 // inverted slice index because roots are usually scanned upside down
+	int id;											   // inverted slice index because roots are usually scanned upside down
 
-	int count_cur_root,			 // number of root pixels in current slice
-			count_prev_root = 0, // number of root pixels in previous slice
-			count_prev_soil = 0; // number of soil pixels in previous slice
+	int count_cur_root,		 // number of root pixels in current slice
+		count_prev_root = 0, // number of root pixels in previous slice
+		count_prev_soil = 0; // number of soil pixels in previous slice
 	float ovlp,
-			ovlp2,
-			ovlp3;
+		ovlp2,
+		ovlp3;
 	bool flag = false; // ?
 
 	// For each grayscale image...
@@ -422,9 +449,9 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 		medianBlur(grayscale_image, grayscale_image, 3);
 
 		Mat soil_binary_image, // soil potential
-				root_binary_image, // root system
-				bw3,
-				bw4;
+			root_binary_image, // root system
+			bw3,
+			bw4;
 
 		// Perform auto thresholding
 		soil_threshold_value = threshold(grayscale_image, soil_binary_image, 0, 255, THRESH_OTSU);
@@ -439,13 +466,13 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 		if (count_prev_root > 0 && (soil_threshold_value - root_threshold_value > 0))
 		{
 			// temp -> root image from previous slice
-			bitwise_and(soil_binary_image, temp, bw3);					 // intersection of current soil and previous root
-			ovlp = countNonZero(bw3);														 // number of white pixels of intersection of current soil and previous root
-			ovlp2 = ovlp;																				 // number of white pixels of intersection of current soil and previous root
-			ovlp = ovlp / countNonZero(soil_binary_image);			 // percentage -> (intersection of current soil and previous root) / (current soil)
+			bitwise_and(soil_binary_image, temp, bw3);			 // intersection of current soil and previous root
+			ovlp = countNonZero(bw3);							 // number of white pixels of intersection of current soil and previous root
+			ovlp2 = ovlp;										 // number of white pixels of intersection of current soil and previous root
+			ovlp = ovlp / countNonZero(soil_binary_image);		 // percentage -> (intersection of current soil and previous root) / (current soil)
 			subtract(root_binary_image, soil_binary_image, bw3); // difference between current root and current soil
-			ovlp2 = countNonZero(bw3);													 // number of white pixels for difference between current root and current soil
-			ovlp2 = ovlp2 / count_prev_root;										 // percentage -> (difference of current root and current soil) / previous root
+			ovlp2 = countNonZero(bw3);							 // number of white pixels for difference between current root and current soil
+			ovlp2 = ovlp2 / count_prev_root;					 // percentage -> (difference of current root and current soil) / previous root
 
 			bitwise_and(bw3, temp, bw4); // intersection of (difference between current root and current soil) and previous root
 			ovlp3 = countNonZero(bw4);	 // number of white pixels for intersection of (difference between current root and current soil) and previous root
@@ -453,21 +480,21 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 			bitwise_and(root_binary_image, temp, bw4); // intersection of current root and previous root
 
 			if (
-					// ( |(pxlCount of diff cRoot and cSoil - pxlCount of pRoot)| < |pxlCount of cRoot| ) AND (there was soil in previous slice)
-					(abs(countNonZero(bw3) - count_prev_root) < abs(countNonZero(root_binary_image) - count_prev_root) && count_prev_soil > 0) ||
-					// OR
-					// (Soil is more dense than root by 5 units) AND
-					// 			(there was soil in previous slice AND the percentage of (intersection of current soil and previous root) / (current soil) is less than 70% )
-					// 			 OR
-					//      (At least one slice has been flagged previously)
-					//         AND
-					//      (the current slice is in the top 80% of volume)
-					//         AND
-					//      (percentage of (difference of current root and current soil) / previous root) is greater than 70%)
-					(
-							soil_threshold_value - root_threshold_value >= 5 &&
-							((count_prev_soil > 0 && ovlp < 0.7) ||
-							 (flag == false && n < 0.8 * fn.size() && ovlp2 > 0.7))))
+				// ( |(pxlCount of diff cRoot and cSoil - pxlCount of pRoot)| < |pxlCount of cRoot| ) AND (there was soil in previous slice)
+				(abs(countNonZero(bw3) - count_prev_root) < abs(countNonZero(root_binary_image) - count_prev_root) && count_prev_soil > 0) ||
+				// OR
+				// (Soil is more dense than root by 5 units) AND
+				// 			(there was soil in previous slice AND the percentage of (intersection of current soil and previous root) / (current soil) is less than 70% )
+				// 			 OR
+				//      (At least one slice has been flagged previously)
+				//         AND
+				//      (the current slice is in the top 80% of volume)
+				//         AND
+				//      (percentage of (difference of current root and current soil) / previous root) is greater than 70%)
+				(
+					soil_threshold_value - root_threshold_value >= 5 &&
+					((count_prev_soil > 0 && ovlp < 0.7) ||
+					 (flag == false && n < 0.8 * fn.size() && ovlp2 > 0.7))))
 			{
 				// Replace current root with the difference between current root and current soil
 				bw3.copyTo(root_binary_image);
@@ -552,14 +579,14 @@ int main(int argc, char **argv)
 	{
 		// Configure program options
 		// Required parameters
-		int soil_removal_flag;						 // soil removal flag
+		int soil_removal_flag;			   // soil removal flag
 		string grayscale_images_directory; // grayscale image directory (PNG)
-		int sampling;											 // downsampling factor (i.e., a sampling of 2 processes half the total grayscale slices)
-		string binary_images_directory;		 // binary image directory
-		string filepath_out;							 // OUT output filepath (root system)
-		string filepath_obj;							 // OBJ output filepath (root system)
-		string filepath_out_soil;					 // OUT output filepath (soil)
-		string filepath_obj_soil;					 // OBJ output filepath (soil)
+		int sampling;					   // downsampling factor (i.e., a sampling of 2 processes half the total grayscale slices)
+		string binary_images_directory;	   // binary image directory
+		string filepath_out;			   // OUT output filepath (root system)
+		string filepath_obj;			   // OBJ output filepath (root system)
+		string filepath_out_soil;		   // OUT output filepath (soil)
+		string filepath_obj_soil;		   // OBJ output filepath (soil)
 
 		po::options_description generic("");
 		generic.add_options()("help,h", "show this help message and exit")("version,V", "show program's version number and exit")("verbose,v", "Increase output verbosity. (default: False)");
@@ -569,23 +596,23 @@ int main(int argc, char **argv)
 
 		po::positional_options_description pos_opts_desc;
 		pos_opts_desc
-				.add("soil-removal-flag", 1)
-				.add("grayscale-images-directory", 1)
-				.add("sampling", 1)
-				.add("binary-images-directory", 1)
-				.add("out-filepath", 1)
-				.add("obj-filepath", 1)
-				.add("out-filepath-soil", 1)
-				.add("obj-filepath-soil", 1);
+			.add("soil-removal-flag", 1)
+			.add("grayscale-images-directory", 1)
+			.add("sampling", 1)
+			.add("binary-images-directory", 1)
+			.add("out-filepath", 1)
+			.add("obj-filepath", 1)
+			.add("out-filepath-soil", 1)
+			.add("obj-filepath-soil", 1);
 
 		po::options_description cmdline_options;
 		cmdline_options
-				.add(generic)
-				.add(hidden);
+			.add(generic)
+			.add(hidden);
 		auto args = po::command_line_parser(argc, argv)
-										.options(cmdline_options)
-										.positional(pos_opts_desc)
-										.run();
+						.options(cmdline_options)
+						.positional(pos_opts_desc)
+						.run();
 
 		po::variables_map vm;
 		po::store(args, vm);
@@ -600,14 +627,14 @@ int main(int argc, char **argv)
 		// Validate options
 		// If help requested
 		if (vm.count("help") ||
-				// If any arguments are missing
-				!(
-						vm.count("soil-removal-flag") &&
-						vm.count("grayscale-images-directory") &&
-						vm.count("sampling") &&
-						vm.count("binary-images-directory") &&
-						vm.count("out-filepath") &&
-						vm.count("obj-filepath")))
+			// If any arguments are missing
+			!(
+				vm.count("soil-removal-flag") &&
+				vm.count("grayscale-images-directory") &&
+				vm.count("sampling") &&
+				vm.count("binary-images-directory") &&
+				vm.count("out-filepath") &&
+				vm.count("obj-filepath")))
 		{
 			cout << "usage: " << argv[0] << " [-h] [-v] [-V] REMOVE_SOIL_FLAG GRAYSCALE_IMAGE_DIRECTORY SAMPLING BINARY_IMAGE_DIRECTORY OUT_FILEPATH OBJ_FILEPATH " << endl;
 			cout << generic << endl;
