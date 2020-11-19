@@ -23,6 +23,11 @@ export PRINT_HELP_PYSCRIPT
 
 BROWSER := python -c "$$BROWSER_PYSCRIPT"
 
+CXX = g++
+CXXFLAGS = -Wno-deprecated -D LINUX
+SOURCES = xrcap/rootCrownSegmentation.cpp
+LIBS = -lopencv_highgui -lopencv_imgcodecs -lopencv_imgproc -lopencv_core -lboost_system -lboost_filesystem -lboost_program_options
+
 help:
 	@python -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
 
@@ -82,4 +87,6 @@ dist: clean ## builds source and wheel package
 	ls -l dist
 
 install: clean ## install the package to the active Python's site-packages
+	if [ ! -d "xrcap/lib" ]; then mkdir -pv xrcap/lib; fi
+	$(CXX) $(CXXFLAGS) $(SOURCES) $(DEPS) $(LIBS) -o xrcap/lib/rootCrownSegmentation
 	python setup.py install
