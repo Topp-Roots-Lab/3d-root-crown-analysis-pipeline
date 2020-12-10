@@ -89,4 +89,5 @@ dist: clean ## builds source and wheel package
 install: clean ## install the package to the active Python's site-packages
 	if [ ! -d "xrcap/lib" ]; then mkdir -pv xrcap/lib; fi
 	$(CXX) $(CXXFLAGS) $(SOURCES) $(DEPS) $(LIBS) -o xrcap/lib/rootCrownSegmentation
+	sed -i "s/GIT_COMMIT = .*/GIT_COMMIT = '$(shell git rev-parse --short HEAD)'/g" xrcap/cli.py
 	python setup.py install
