@@ -294,6 +294,7 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 			// std::cout << "Otsu Treshold: " << otsu_threshold_value << std::endl;
 
 			int adjusted_thresholed_value = floor((triangle_threshold_value + otsu_threshold_value) / 2.0);
+			adjusted_thresholed_value = floor((triangle_threshold_value + adjusted_thresholed_value) / 2.0);
 			adjusted_thresholed_value = otsu_threshold_value;
 
 			// In the rare instance that Otsu's method picks a darker threshold, default
@@ -343,7 +344,9 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 			blankSliceFlag = true;
 		}
 
-		std::cout << "Slice '" << n << "' segmented with " << thresholding_method << " (" << threshold_value << ")" << std::endl;
+		// Write thresholded binary image to disk
+		string filename = fn[n].substr(fn[n].find_last_of("/") + 1);
+		std::cout << "Slice '" << n << "' segmented with " << thresholding_method << " (" << threshold_value << ") for " << filename << std::endl;
 		// Update "previous" state to processed "current" state values
 		count_prev = count_cur;
 
@@ -362,9 +365,6 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 					fprintf(Outfp, "%d %d %d\n", j, i, id / sampling);
 				}
 			}
-
-		// Write thresholded binary image to disk
-		string filename = fn[n].substr(fn[n].find_last_of("/") + 1);
 		imwrite(binary_images_directory + filename, binary_image);
 		cout << "Write binary image '" << filename << "'" << endl;
 	}
@@ -521,6 +521,7 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 
 		// Convert threshold images to OBJ and OUT files
 		for (int i = 0; i < rows; i++)
+		{
 			for (int j = 0; j < cols; j++)
 			{
 				int index = i * cols + j;
@@ -543,12 +544,15 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 					fprintf(Objfp_soil, "v %d %d %d\n", j, i, id / sampling);
 					fprintf(Outfp_soil, "%d %d %d\n", j, i, id / sampling);
 				}
+
 			}
+		}
 
 		// Write thresholded binary image to disk
-		string filename = fn[n].substr(fn[n].find_last_of("\\") + 1);
-		imwrite(binary_images_directory + filename, root_binary_image);
-		cout << "Write binary image '" << filename << "'" << endl;
+		string filename = fn[n].substr(fn[n].find_last_of("/") + 1);
+		string filepath = binary_images_directory + filename;
+		imwrite(filepath, root_binary_image);
+		cout << "Write binary image '" << filepath << "'" << endl;
 
 		// Save current root image data to temp for comparison with next slice
 		root_binary_image.copyTo(temp);
