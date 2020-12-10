@@ -6,7 +6,6 @@ import sys
 import time
 from importlib.metadata import version
 from multiprocessing import cpu_count
-import git
 
 from xrcap import (batch_segmentation, batch_skeleton, rootCrownImageAnalysis3D, collate, log,
                    qualitycontrol)
