@@ -81,7 +81,7 @@ def wrl2ctm(meshlabserver, ifp):
     cmd = [meshlabserver, '-i', ifp, '-o', ofp]
     logging.debug(' '.join(cmd))
     if "DISPLAY" not in os.environ:
-        with Xvfb() as xvfb:
+        with Xvfb() as _:
             p = subprocess.run(cmd, capture_output=True, text=True)
     else:
         p = subprocess.run(cmd, capture_output=True, text=True)
@@ -173,3 +173,5 @@ def main(args):
             p.join()
         
         pbar.close()
+
+    return 0
