@@ -91,10 +91,8 @@ sudo make install
 
 ## Compile C++ Binaries (Optional)
 
-If you ever need to test the C++ module that handles segmentation, you can compile it directly with the following code.
-
-```bash
-g++ -o xrcap/lib/rootCrownSegmentation xrcap/rootCrownSegmentation.cpp -lopencv_highgui -lopencv_imgcodecs -lopencv_imgproc -lopencv_core -lboost_system -lboost_filesystem -lboost_program_options
+```{.sourceCode .bash}
+g++ -o xrcap/lib/rootCrownSegmentation xrcap/rootCrownSegmentation.cpp -lopencv_highgui -lopencv_imgcodecs -lopencv_imgproc -lopencv_core -lboost_system -lboost_filesystem -lboost_program_options -ltbb
 ```
 
 ## Optional dependencies

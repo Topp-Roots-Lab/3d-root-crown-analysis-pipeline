@@ -4,7 +4,6 @@ include HISTORY.rst
 include LICENSE
 include README.rst
 include xrcap/lib/rootCrownSegmentation
-include xrcap/lib/Skeleton
 
 recursive-include tests *
 recursive-exclude * __pycache__

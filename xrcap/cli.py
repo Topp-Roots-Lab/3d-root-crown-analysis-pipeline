@@ -11,29 +11,26 @@ from xrcap import (batch_segmentation, batch_skeleton, rootCrownImageAnalysis3D,
                    qualitycontrol)
 
 __version__ = version('xrcap')
+GIT_COMMIT = 'e99ab5d'
 
 def main():
     """Console script for xrcap."""
     parser = argparse.ArgumentParser()
     parser.add_argument('_', nargs='*')
-    args = parser.parse_args()
-
-    print("Arguments: " + str(args._))
-    print("Replace this message by putting your code into "
-          "xrcap.cli.main")
+    parser.parse_args()
     return 0
 
 def segment():
     description = "Segmentation"
     parser = argparse.ArgumentParser(description=description,formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
-    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
+    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__} (commit {GIT_COMMIT})')
     parser.add_argument('-t', "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
     parser.add_argument("-f", "--force", action="store_true", help="Force file creation. Overwrite any existing files.")
     parser.add_argument("-n", "--dry-run", dest='dryrun', action="store_true", help="*Not yet implemented.* Perform a trial run. Do not create image files, but logs will be updated.")
     parser.add_argument("--progress", action="store_true", help="Enables multiple progress bar, one for each volume during processing.")
     parser.add_argument('--soil', action='store_true', help="Extract any soil during segmentation.")
-    parser.add_argument('-s', "--sampling", help="resolution parameter", default=2)
+    parser.add_argument('-s', "--sampling", type=int, help="resolution parameter", default=2)
     parser.add_argument("path", metavar='PATH', type=str, nargs=1, help='Input directory to process')
     args = parser.parse_args()
 
@@ -63,7 +60,7 @@ def skeleton():
     description = "Skeletonization, Meshing, and Feature extraction"
     parser = argparse.ArgumentParser(description=description,formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity.")
-    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
+    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__} (commit {GIT_COMMIT})')
     parser.add_argument('-t', "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
     parser.add_argument("-f", '--force', action="store_true", help="Force file creation. Overwrite any existing files.")
     parser.add_argument("-n", '--dry-run', dest='dryrun', action="store_true", help="Perform a trial run. Do not create image files, but logs will be updated.")
@@ -96,7 +93,7 @@ def skeleton():
 def image_analysis():
     parser = argparse.ArgumentParser(description='Root Crown Image Analysis', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
-    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
+    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__} (commit {GIT_COMMIT})')
     parser.add_argument("-f", '--force', action="store_true", help="(Not yet implemented) Force file creation. Overwrite any existing files.")
     parser.add_argument('-s', "--sampling", default=2, help="resolution parameter")
     parser.add_argument('-t', "--thickness", type=float, help="slice thickness in mm")
@@ -123,7 +120,7 @@ def qc_binary_images():
     description='Check tresholded images for pure white slices. Creates CSV of volumes that have more than a given percentage of white pixels.'
     parser = argparse.ArgumentParser(description=description,formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
-    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
+    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__} (commit {GIT_COMMIT})')
     parser.add_argument("-c", "--cutoff", type=float, default=0.8, help="The minimum percentage of white pixels for a given slice for it to be flagged as invalid.")
     parser.add_argument("-l", "--list", action="store_true", help="Output TXT files that lists bad binary images produced by segmentation")
     parser.add_argument("path", metavar='PATH', type=str, nargs='+', help='Input directory to process. Must contain folder with thresholded images.')
@@ -141,7 +138,7 @@ def qc_point_clouds():
     description='Create a downsampled version of point cloud data (.obj) based on a random selection of which points are kept.'
     parser = argparse.ArgumentParser(description=description,formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
-    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
+    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__} (commit {GIT_COMMIT})')
     parser.add_argument('-t', "--threads", type=int, default=cpu_count(), help=f"Maximum number of threads dedicated to processing.")
     parser.add_argument("-f", "--force", action="store_true", help="Force file creation. Overwrite any existing files.")
     parser.add_argument("-p", "--probability", type=float, default=0.03, help="Probability that a point will be kept ")
@@ -168,7 +165,7 @@ def collate_output():
     description='Combine many results files into one.'
     parser = argparse.ArgumentParser(description=description,formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
-    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__}')
+    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__} (commit {GIT_COMMIT})')
     parser.add_argument("-f", "--force", action="store_true", help="Force file creation. Overwrite any existing files.")
     parser.add_argument("--traits", action="store_true", help="Combine any traits.csv into one file.")
     parser.add_argument("--features", action="store_true", help="Combine any features.tsv into one file.")
