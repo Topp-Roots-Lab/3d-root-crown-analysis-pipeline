@@ -12,6 +12,7 @@ import threading
 from importlib.metadata import version
 from multiprocessing import Pool, cpu_count
 from multiprocessing.pool import ThreadPool
+from sys import float_info
 
 import cv2 as cv
 import matplotlib.pyplot as plt
@@ -105,8 +106,19 @@ def calFractalDim(img):
 def calStatTexture(hist):
     """"""
     bins = np.linspace(min(np.nonzero(hist)[0]), max(np.nonzero(hist)[0]), 33, dtype = int)
+    logging.debug(f"{bins=}")
     hist_scale = [sum(hist[bins[x]:bins[x+1]]) for x in range(0, 32, 1)]
+    logging.debug(f"{hist_scale=}")
     probs = np.array(hist_scale, dtype = float)/sum(hist_scale)
+    logging.debug(f"{probs=}")
+
+    # NOTE(tparker): Since calculating entropy value requires division by each probability,
+    # there's a chance you may divide by zero
+    # There is precedent for this and is reported in
+    # https://github.com/Topp-Roots-Lab/3d-root-crown-analysis-pipeline/issues/27
+    # As a workaround, set probability of zero to some extremely small
+    probs[probs == 0] = float_info.min
+
     b = list(range(1, 33, 1))
     mean = sum(probs*b)
     std = math.sqrt(sum((b-mean)**2*probs))
