@@ -118,6 +118,7 @@ def calStatTexture(hist):
     # https://github.com/Topp-Roots-Lab/3d-root-crown-analysis-pipeline/issues/27
     # As a workaround, set probability of zero to some extremely small
     probs[probs == 0] = float_info.min
+    logging.debug(f"{probs=}")
 
     b = list(range(1, 33, 1))
     mean = sum(probs*b)
