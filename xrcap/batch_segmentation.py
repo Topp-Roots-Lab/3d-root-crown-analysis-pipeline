@@ -141,3 +141,5 @@ def main(args):
 		if not args.verbose:
 			# Close progress bar
 			pbar.close()
+
+	return 0

@@ -111,3 +111,4 @@ venv.bak/
 data/
 *.csv
 temp.temp
+xrcap/lib/rootCrownSegmentation

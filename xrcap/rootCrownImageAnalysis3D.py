@@ -12,6 +12,7 @@ import threading
 from importlib.metadata import version
 from multiprocessing import Pool, cpu_count
 from multiprocessing.pool import ThreadPool
+from sys import float_info
 
 import cv2 as cv
 import matplotlib.pyplot as plt
@@ -105,8 +106,20 @@ def calFractalDim(img):
 def calStatTexture(hist):
     """"""
     bins = np.linspace(min(np.nonzero(hist)[0]), max(np.nonzero(hist)[0]), 33, dtype = int)
+    logging.debug(f"{bins=}")
     hist_scale = [sum(hist[bins[x]:bins[x+1]]) for x in range(0, 32, 1)]
+    logging.debug(f"{hist_scale=}")
     probs = np.array(hist_scale, dtype = float)/sum(hist_scale)
+    logging.debug(f"{probs=}")
+
+    # NOTE(tparker): Since calculating entropy value requires division by each probability,
+    # there's a chance you may divide by zero
+    # There is precedent for this and is reported in
+    # https://github.com/Topp-Roots-Lab/3d-root-crown-analysis-pipeline/issues/27
+    # As a workaround, set probability of zero to some extremely small
+    probs[probs == 0] = float_info.min
+    logging.debug(f"{probs=}")
+
     b = list(range(1, 33, 1))
     mean = sum(probs*b)
     std = math.sqrt(sum((b-mean)**2*probs))
@@ -156,7 +169,7 @@ def process(args, fp, subfolder, thickness, scale, depth, pos, pbar_position):
     for s_root, s_dirs, s_files in os.walk(os.path.join(fp, subfolder)):
         # Get initial conditions and sizes from first image found
         img = cv.imread(os.path.join(fp, subfolder, s_files[0]), cv.IMREAD_GRAYSCALE)
-        img_files = [ f for f in s_files if subfolder in f and f.endswith('.png') ]
+        img_files = [ f for f in s_files if f.endswith('.png') ]
         maximum_number_of_points = len(img_files) * img.shape[0] * img.shape[1]
         chunksize = (maximum_number_of_points * 20) // 100 // 3 # Get 20% of the max points in a volume, and then a third of that for the column dimension for "all_pts"
         logging.debug(f'{maximum_number_of_points=}')
@@ -189,6 +202,7 @@ def process(args, fp, subfolder, thickness, scale, depth, pos, pbar_position):
                 retval, img = cv.threshold(img, 0, 1, cv.THRESH_BINARY)
                 # Count the number of white pixels and convert them to an array of 3-D points
                 pts, num = image2Points(img, z)
+
                 # When at least one pixel is found...
                 if num > 0:
                     # Allocate more memory if the number of points in the current slice
@@ -234,6 +248,7 @@ def process(args, fp, subfolder, thickness, scale, depth, pos, pbar_position):
         # Therefore, only perform the calculations if enabled
         if args.kde:
             import asyncio
+
             async def process_kde_with_matlab(cmd):
 
                 proc = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
@@ -287,7 +302,7 @@ def process(args, fp, subfolder, thickness, scale, depth, pos, pbar_position):
 
         densityS1 = calDensity(im_S1, width_S2)
         densityS2 = calDensity(im_S2, width_S1)
-        densityT =calDensity(im_T, depth_S)
+        densityT = calDensity(im_T, depth_S)
         FD_S1 = calFractalDim(bw_S1)
         FD_S2 = calFractalDim(bw_S2)
         FD_T = calFractalDim(bw_T)
@@ -304,21 +319,20 @@ def process(args, fp, subfolder, thickness, scale, depth, pos, pbar_position):
         traits["Flatness"] = flat
         traits["Football"] = football
         if args.kde:
-            for i in range(1,21):
+            for i in range(1, 21):
                 traits[f"Biomass_vhist{i}"] = biomass_hist[i-1]
-            for i in range(1,21):
+            for i in range(1, 21):
                 traits[f"Convexhull_vhist{i}"] = convexhull_hist[i-1]
 
         solidity_hist = np.squeeze(solidity_hist)
-        for i in range(1,21):
+        for i in range(1, 21):
             traits[f"Solidity_vhist{i}"] = solidity_hist[i-1]
 
-
         densityS = (densityS1 + densityS2)/2
-        for i in range(1,7):
+        for i in range(1, 7):
             traits[f"Density_S{i}"] = densityS[i-1]
 
-        for i in range(1,7):
+        for i in range(1, 7):
             traits[f"Density_T{i}"] = densityT[i-1]
 
         FractalDimension_S, FractalDimension_T = [(FD_S1 + FD_S2)/2, FD_T]
@@ -340,7 +354,6 @@ def main(args):
     # Disable debug statements from matplotlib.font_manager
     logging.getLogger('matplotlib.font_manager').setLevel(logging.WARNING)
 
-
     # When not slice thickness is provided, try to extract it from .DAT
     if not args.thickness:
         logging.debug(f"Slice thickness was not provided. Extracting information from .DAT files.")
@@ -356,6 +369,7 @@ def main(args):
         def async_callback(*response):
             results.append(response[0]) # response is returned as a tuple
             pbar.update()
+
         def async_error_callback(*err):
             logging.error(err)
 
@@ -365,6 +379,7 @@ def main(args):
             for root, dirs, files in list_dirs:
                 for pbar_position, subfolder in enumerate(dirs, start=1):
                     logging.debug(f"Processing {subfolder}")
+
                     # When not slice thickness is provided, try to extract it from .DAT
                     if args.thickness is None:
                         # Find folder that contains RAW and DAT files
@@ -390,7 +405,7 @@ def main(args):
                     # If half the images were used, double the thickness per 'slice'
                     scale = float(args.sampling)*float(thickness)
                     logging.debug(f"Scale set to '{scale}'")
-                    ##Changed (round)(200/scale) because in Python2 round will produce a float - (ex. 952.0) and now makes integer 952
+                    ## Changed (round)(200/scale) because in Python2 round will produce a float - (ex. 952.0) and now makes integer 952
                     # Calculate the number of expected images
                     depth = int((round)(200/scale))
                     logging.debug(f"{depth=}")

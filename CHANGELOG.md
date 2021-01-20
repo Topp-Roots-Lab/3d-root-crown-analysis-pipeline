@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.6.2 - 2020-12-11
+
+### Added
+
+- Threaded building blocks library as dependency
+- Commit short hash in version reported at runtime
+- Check and reduction of circular artifacts at stalk side and root-tip side of roots system during segmentation
+
+### Changed
+
+- Use system installation of `skel`
+- Cleaned up syntax to be clearer and consistent
+
+### Fixed
+
+- Changed expected input type of sampling for segmentation from string to integer
+- Changed filepath delimiter used during soil-removal-based segmentation
+
+### Removed
+
+- `Skeleton` from included binaries
+- Unused code in `cli` module
+- Condition for filter image (.png) files found in a thresholded images folder (see note 1) 
+### Notes
+
+1. Previously, it required that each image contain the name of its parent folder; otherwise, it would not be processed.
+
 ## v1.6.1 - 2020-08-31
 
 ### Changed
