@@ -1,6 +1,7 @@
 # 3-D Root Crown Analysis Pipeline
 
-Stable version: 1.6.2
+Stable version: 1.6.3
+
 Compatibility: Python 3.8 or newer
 
 This set of scripts is used to analyze 3-D volumes of maize root crowns.
