@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.6.3 - 2021-01-19
+
+### Changed
+
+- Disabled log file structure generation upon installation
+
+### Fixed
+
+- Accidentally attempts to divide by zero during stat texture calculation
+
 ## v1.6.2 - 2020-12-11
 
 ### Added
