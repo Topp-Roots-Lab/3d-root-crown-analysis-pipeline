@@ -10,4 +10,5 @@
 
 ## Contributors
 
-None yet. Why not be the first?
+- Mao Li \<<MLi@danforthcenter.org>\>
+- Tim Parker \<<Tim.ParkerD@gmail.com>\>
