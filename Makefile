@@ -23,6 +23,11 @@ export PRINT_HELP_PYSCRIPT
 
 BROWSER := python -c "$$BROWSER_PYSCRIPT"
 
+CXX = g++
+CXXFLAGS = -Wno-deprecated -D LINUX
+SOURCES = xrcap/rootCrownSegmentation.cpp
+LIBS = -lopencv_highgui -lopencv_imgcodecs -lopencv_imgproc -lopencv_core -lboost_system -lboost_filesystem -lboost_program_options -ltbb
+
 help:
 	@python -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
 
@@ -83,10 +88,15 @@ dist: clean ## builds source and wheel package
 	ls -l dist
 
 install: clean ## install the package to the active Python's site-packages
-	mkdir -pv xrcap/lib
-	mkdir -pv /var/log/xrcap/batch_segmentation /var/log/xrcap/batch_skeleton /var/log/xrcap/qc_binary_images /var/log/xrcap/qc_point_clouds /var/log/xrcap/rootCrownImageAnalysis3D
-	chmod -Rv 2777 /var/log/xrcap
-	g++ -o xrcap/lib/rootCrownSegmentation xrcap/rootCrownSegmentation.cpp -lopencv_highgui -lopencv_imgcodecs -lopencv_imgproc -lopencv_core -lboost_system -lboost_filesystem -lboost_program_options
+	if [ ! -d "xrcap/lib" ]; then mkdir -pv xrcap/lib; fi
+	$(CXX) $(CXXFLAGS) $(SOURCES) $(DEPS) $(LIBS) -o xrcap/lib/rootCrownSegmentation
+	sed -i "s/GIT_COMMIT = .*/GIT_COMMIT = '$(shell git rev-parse --short HEAD)'/g" xrcap/cli.py
+
+	# TODO(tparker): Set up logging during installation
+	# mkdir -pv xrcap/lib
+	# mkdir -pv /var/log/xrcap/batch_segmentation /var/log/xrcap/batch_skeleton /var/log/xrcap/qc_binary_images /var/log/xrcap/qc_point_clouds /var/log/xrcap/rootCrownImageAnalysis3D
+	# chmod -Rv 2777 /var/log/xrcap
+
 	pip install .
 
 uninstall: clean ## remove package
