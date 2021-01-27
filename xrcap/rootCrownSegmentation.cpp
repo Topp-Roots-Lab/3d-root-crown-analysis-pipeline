@@ -210,7 +210,7 @@ bool hasCircularArtifact(int slice_index, cv::Mat &data)
  * @param filepath_out Destination filepath to output OUT file
  * @param filepath_obj Destination filepath to output OBJ file
  */
-int segment(string grayscale_images_directory, int sampling, string binary_images_directory, string filepath_out, string filepath_obj)
+int segment(string grayscale_images_directory, int sampling, string binary_images_directory, string filepath_out, string filepath_obj, int user_threshold_value)
 {
 	// Initialize OUT file
 	FILE *Outfp = fopen(filepath_out.c_str(), "w");
@@ -254,7 +254,13 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 		resize(grayscale_image, grayscale_image, Size(), scale, scale, INTER_LINEAR);
 		Mat binary_image; // thresholded image data
 
-		threshold_value = threshold(grayscale_image, binary_image, 0, 255, CV_THRESH_TRIANGLE);
+		// If the user defines a threshold value, use it for segmentation
+		if (threshold_value > -1) {
+			threshold_value = cv::threshold(grayscale_image, binary_image, user_threshold_value, 255, CV_THRESH_BINARY);
+		// Otherwise, determine a threshold value for segmentation
+		} else {
+			threshold_value = threshold(grayscale_image, binary_image, 0, 255, CV_THRESH_TRIANGLE);
+		}
 		// printf("Threshold value: %f\n", threshold_value);
 
 		// NOTE(tparker): Check that the threshold value has not been picked from
@@ -591,12 +597,25 @@ int main(int argc, char **argv)
 		string filepath_obj;			   // OBJ output filepath (root system)
 		string filepath_out_soil;		   // OUT output filepath (soil)
 		string filepath_obj_soil;		   // OBJ output filepath (soil)
+		int threshold_value;		   // user-defined grayscale value to use as the threshold (inclusive)
 
 		po::options_description generic("");
-		generic.add_options()("help,h", "show this help message and exit")("version,V", "show program's version number and exit")("verbose,v", "Increase output verbosity. (default: False)");
+		generic.add_options()
+			("help,h", "show this help message and exit")
+			("version,V", "show program's version number and exit")
+			("verbose,v", "Increase output verbosity. (default: False)")
+			("cutoff,c", po::value<int>(&threshold_value)->default_value(-1), "User defined integer threshold value (inclusive) (default: -1");
 
 		po::options_description hidden("Hidden options");
-		hidden.add_options()("soil-removal-flag", po::value<int>(&soil_removal_flag), "enable automatic soil removal")("grayscale-images-directory", "filepath to directory containing grayscale images")("sampling", po::value<int>(&sampling), "downsampling factor")("binary-images-directory", "filepath to directory to store binary images")("out-filepath", "filepath for produced .OUT file")("obj-filepath", "filepath for produced .OBJ file")("out-filepath-soil", "filepath for produced .OUT file (soil)")("obj-filepath-soil", "filepath for produced .OBJ file (soil)");
+		hidden.add_options()
+			("soil-removal-flag", po::value<int>(&soil_removal_flag), "enable automatic soil removal")
+			("grayscale-images-directory", "filepath to directory containing grayscale images")
+			("sampling", po::value<int>(&sampling), "downsampling factor")
+			("binary-images-directory", "filepath to directory to store binary images")
+			("out-filepath", "filepath for produced .OUT file")
+			("obj-filepath", "filepath for produced .OBJ file")
+			("out-filepath-soil", "filepath for produced .OUT file (soil)")
+			("obj-filepath-soil", "filepath for produced .OBJ file (soil)");
 
 		po::positional_options_description pos_opts_desc;
 		pos_opts_desc
@@ -666,6 +685,10 @@ int main(int argc, char **argv)
 		cout << "OUT filepath:\t" << filepath_out << endl;
 		cout << "OBJ filepath:\t" << filepath_obj << endl;
 
+		if (threshold_value > -1) {
+			std::cout << "User-defined threshold value:\t" << std::to_string(threshold_value) << std::endl;
+		}
+
 		// Perform segmentation
 		if (soil_removal_flag)
 		{
@@ -678,7 +701,7 @@ int main(int argc, char **argv)
 		}
 		else
 		{
-			segment(grayscale_images_directory, sampling, binary_images_directory, filepath_out, filepath_obj);
+			segment(grayscale_images_directory, sampling, binary_images_directory, filepath_out, filepath_obj, threshold_value);
 		}
 		cout << "Finished processing " << grayscale_images_directory << ". Exiting." << endl;
 	}

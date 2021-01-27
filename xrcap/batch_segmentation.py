@@ -111,7 +111,9 @@ def main(args):
 		binary_filepath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'lib', 'rootCrownSegmentation')
 		cmd = [binary_filepath, str(args.soil), f'{fp}/', str(args.sampling), f'{ofp}/', f'{out_fp}', f'{obj_fp}']
 		if args.soil == 1:
-			cmd += [soil_out_fp, soil_obj_fp]
+			cmd += [ soil_out_fp, soil_obj_fp ]
+		if args.cutoff > -1:
+			cmd += [ "-c", str(args.cutoff) ]
 		cmd_list.append(cmd)
 
 	# Process data
