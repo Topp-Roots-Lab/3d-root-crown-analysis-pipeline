@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.6.4 - 2021-04-06
+
+### Fixed
+
+- Incorrect filepath provided to external MATLAB code. Now protects against paths with spaces in filepath.
+
 ## v1.6.3 - 2021-01-19
 
 ### Changed
