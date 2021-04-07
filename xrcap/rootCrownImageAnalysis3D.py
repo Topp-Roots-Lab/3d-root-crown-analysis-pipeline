@@ -273,7 +273,7 @@ def process(args, fp, subfolder, thickness, scale, depth, pos, pbar_position):
                 if stderr:
                     logging.error(f'[stderr]\n{stderr.decode()}')
 
-            biomass_hist, convexhull_hist = asyncio.run(process_kde_with_matlab(f"kde-traits {os.path.join(fp, subfolder)} {thickness} {args.sampling}"))
+            biomass_hist, convexhull_hist = asyncio.run(process_kde_with_matlab(f"kde-traits '{os.path.join(fp, subfolder)}' {thickness} {args.sampling}"))
 
         if len(solidity) < depth:
             solidity = np.append(solidity, np.zeros(int(depth-len(solidity)))) # pad with zeros for missing depth values
