@@ -11,7 +11,7 @@ from xrcap import (batch_segmentation, batch_skeleton, rootCrownImageAnalysis3D,
                    qualitycontrol)
 
 __version__ = version('xrcap')
-GIT_COMMIT = 'e99ab5d'
+GIT_COMMIT = 'f0f6dc0'
 
 def main():
     """Console script for xrcap."""
@@ -44,9 +44,6 @@ def segment():
 
     if args.dryrun:
         logging.info(f"DRY-RUN MODE ENABLED")
-
-    # Recode soil input to match the input of rootCrownSegmentation binary
-    args.soil = 1 if args.soil else 0
 
     # Disable progress bars if verbose mode enabled
     if args.verbose:
