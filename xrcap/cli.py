@@ -11,7 +11,7 @@ from xrcap import (batch_segmentation, batch_skeleton, rootCrownImageAnalysis3D,
                    qualitycontrol)
 
 __version__ = version('xrcap')
-GIT_COMMIT = 'f0f6dc0'
+GIT_COMMIT = '55d21bb'
 
 def main():
     """Console script for xrcap."""

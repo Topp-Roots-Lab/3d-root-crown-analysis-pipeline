@@ -251,13 +251,13 @@ int user_defined_segment(string grayscale_images_directory, int sampling, string
 	int slice_count = fn.size();
 	for (int n = 0; n < slice_count; n += sampling)
 	{
-		std::string thresholding_method = "triangle";
 		id = slice_count - n;
 		Mat grayscale_image = imread(fn[n], CV_LOAD_IMAGE_GRAYSCALE);
 		resize(grayscale_image, grayscale_image, Size(), scale, scale, INTER_LINEAR);
 		Mat binary_image; // thresholded image data
 
 		cv::inRange(grayscale_image, lowerb, upperb, binary_image);
+		
 
 		// Write thresholded binary image to disk
 		string filename = fn[n].substr(fn[n].find_last_of("/") + 1);
@@ -788,9 +788,7 @@ int main(int argc, char **argv)
 		}
 		else if (manual_segmentation)
 		{
-			std::cout << "RUN USER SEGMENTATION" << std::endl;
 			user_defined_segment(grayscale_images_directory, sampling, binary_images_directory, filepath_out, filepath_obj, lower_bound, upper_bound);
-			std::cout << "FINISH USER SEGMENTATION" << std::endl;
 		}
 		else
 		{

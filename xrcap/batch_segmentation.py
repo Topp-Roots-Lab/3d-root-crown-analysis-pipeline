@@ -95,6 +95,8 @@ def csv(*args, **kwargs):
 		# Count the number of existing scans
 		logging.info(f"Found {len(validated_df)} volume(s).")
 		logging.debug(validated_df)
+		logging.warning(f"Unable to find the following volume(s).")
+		logging.warning(list(df[~dff["path_exists"]]["Basename"]))
 
 		# Restructure data into a list of dictionary objects for easier access during iteration
 		validated_scans = validated_df.to_dict(orient="records")
@@ -120,6 +122,8 @@ def csv(*args, **kwargs):
 			gfp = fp["Predicted Grayscale Image Folder"] # grayscale image file path
 			thresholded_folder = f"{os.path.dirname(gfp)}_thresholded_images"
 			model_folder = f"{os.path.dirname(gfp)}_3d_models"
+			lowerb = fp["Lower Bound Threshold Value (uint8)"]
+			upperb = fp["Upper Bound Threshold Value (uint8)"]
 
 			# Create paths to the output files
 			volume_name = os.path.basename(gfp)
@@ -136,7 +140,7 @@ def csv(*args, **kwargs):
 					os.makedirs(ofp)
 
 			binary_filepath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'lib', 'rootCrownSegmentation')
-			cmd = [binary_filepath, f'{gfp}/', f'{ofp}/', f'{out_fp}', f'{obj_fp}', '--sampling', str(sampling) ]
+			cmd = [binary_filepath, f'{gfp}/', f'{ofp}/', f'{out_fp}', f'{obj_fp}', '--sampling', str(sampling), "--manual", "-l", str(lowerb), "-u", str(upperb) ]
 			cmd_list.append(cmd)
 
 			logging.debug(cmd_list)
@@ -220,9 +224,10 @@ def main(args):
 			os.makedirs(ofp)
 
 		binary_filepath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'lib', 'rootCrownSegmentation')
-		cmd = [binary_filepath, f'{fp}/', '--sampling', str(args.sampling), f'{ofp}/', f'{out_fp}', f'{obj_fp}']
+		cmd = [binary_filepath, f'{fp}/', f'{ofp}/', f'{out_fp}', f'{obj_fp}']
 		if args.soil:
 			cmd += ['--remove-soil', soil_out_fp, soil_obj_fp]
+		cmd += ['--sampling', str(args.sampling),]
 		cmd_list.append(cmd)
 
 	# Process data
@@ -246,7 +251,7 @@ def main(args):
 		# For each slice in the volume...
 		for i, cmd in enumerate(cmd_list, start = 1):
 			# Run command as separate process
-			p.apply_async(run, args=(cmd, lock, i), **args, callback=pbar_update, error_callback=subprocess_error_callback)
+			p.apply_async(run, (cmd, lock, i), dict(**vars(args)), callback=pbar_update, error_callback=subprocess_error_callback)
 		p.close()
 		p.join()
 		if not args.verbose:
