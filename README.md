@@ -1,6 +1,6 @@
 # 3-D Root Crown Analysis Pipeline
 
-Stable version: 1.6.3
+Stable version: 1.7.0
 
 Compatibility: Python 3.8 or newer
 
