@@ -11,7 +11,9 @@ from xrcap import (batch_segmentation, batch_skeleton, rootCrownImageAnalysis3D,
                    qualitycontrol)
 
 __version__ = version('xrcap')
-GIT_COMMIT = 'c8a0578'
+
+GIT_COMMIT = ''
+
 
 def main():
     """Console script for xrcap."""
@@ -31,6 +33,7 @@ def segment():
     parser.add_argument("--progress", action="store_true", help="Enables multiple progress bar, one for each volume during processing.")
     parser.add_argument('--soil', action='store_true', help="Extract any soil during segmentation.")
     parser.add_argument('-s', "--sampling", type=int, help="resolution parameter", default=2)
+    parser.add_argument("--csv", action="store", type=str, help="Input is a CSV containing list of file paths and lower- and upper-bounds for segmentation")
     parser.add_argument("path", metavar='PATH', type=str, nargs=1, help='Input directory to process')
     args = parser.parse_args()
 
@@ -44,15 +47,15 @@ def segment():
     if args.dryrun:
         logging.info(f"DRY-RUN MODE ENABLED")
 
-    # Recode soil input to match the input of rootCrownSegmentation binary
-    args.soil = 1 if args.soil else 0
-
     # Disable progress bars if verbose mode enabled
     if args.verbose:
         args.progress = False
 
     start_time = time.perf_counter()
-    returncode = batch_segmentation.main(args)
+    if args.csv:
+        returncode = batch_segmentation.csv(**vars(args))
+    else:
+        returncode = batch_segmentation.main(args)
     logging.info(f'Total execution time: {time.perf_counter() - start_time} seconds')
     return returncode
 

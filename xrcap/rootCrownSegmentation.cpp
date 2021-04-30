@@ -22,7 +22,7 @@ using namespace cv;
 using namespace std;
 
 const string MODULE_NAME = "rootCrownSegmentation";
-const string VERSION_NO = "1.1.1";
+const string VERSION_NO = "1.2.0";
 const string VERSION = MODULE_NAME + " " + VERSION_NO;
 
 /*
@@ -199,6 +199,100 @@ bool hasCircularArtifact(int slice_index, cv::Mat &data)
 	// Otherwise, it's not reasonable to assume that any flagged pixels are
 	// make up a circular artifact
 	return false;
+}
+
+/*
+ * Convert grayscale images to binary images
+ *
+ * @param grayscale_images_directory Filepath to grayscale images directory
+ * @param sampling Downsampling factor (e.g., 2 equates to 1/(2^3) overall scale)
+ * @param binary_images_directory Destination filepath to output directory for binary images
+ * @param filepath_out Destination filepath to output OUT file
+ * @param filepath_obj Destination filepath to output OBJ file
+ * @param lower_bound The lowest value to be *included* during segmentation
+ * @param upper_bound The highest value to be *included* during segmentation
+ */
+int user_defined_segment(string grayscale_images_directory, int sampling, string binary_images_directory, string filepath_out, string filepath_obj, int lowerb = 0, int upperb =  255)
+{
+	std::cout << "LINE 217" << std::endl;
+	// Initialize OUT file
+	FILE *Outfp = fopen(filepath_out.c_str(), "w");
+
+	int numVert = 0;
+	fprintf(Outfp, "# %s\n", VERSION.c_str());
+	fprintf(Outfp, "%20d\n", numVert);
+
+	// Initialize OBJ file
+	FILE *Objfp = fopen(filepath_obj.c_str(), "w");
+
+	// Gather list of all grayscale images
+	string filePath = grayscale_images_directory + "*.png";
+	vector<String> fn;
+	glob(filePath, fn);
+
+	// Set scale based on downsampling factor
+	float scale = 1.0 / sampling; // reciprocal of sampling value
+	cout << "Scale set as '" << scale << "'" << endl;
+
+	// Use first image to initialize dimensions and memory requirements
+	Mat temp = imread(fn[0], CV_LOAD_IMAGE_GRAYSCALE);
+	resize(temp, temp, Size(), scale, scale, INTER_LINEAR);
+	int rows, cols, size;
+	rows = temp.rows;
+	cols = temp.cols;
+	temp.release(); // free temporary image from memory
+	size = rows * cols;
+
+	int id;					// inverted slice index because roots are usually scanned upside down
+
+	int count_cur, count_prev = 0, count_prev2 = 0; // white pixel counter(s)
+
+	// For each grayscale image...
+	int slice_count = fn.size();
+	for (int n = 0; n < slice_count; n += sampling)
+	{
+		id = slice_count - n;
+		Mat grayscale_image = imread(fn[n], CV_LOAD_IMAGE_GRAYSCALE);
+		resize(grayscale_image, grayscale_image, Size(), scale, scale, INTER_LINEAR);
+		Mat binary_image; // thresholded image data
+
+		cv::inRange(grayscale_image, lowerb, upperb, binary_image);
+		
+
+		// Write thresholded binary image to disk
+		string filename = fn[n].substr(fn[n].find_last_of("/") + 1);
+		std::cout << "Slice '" << n << "' manually segmented with lower and upper bounds of [" << lowerb << ", " << upperb << "] " << filename << std::endl;
+
+		// Convert threshold image to OBJ and OUT files
+		for (int i = 0; i < rows; i++)
+			for (int j = 0; j < cols; j++)
+			{
+				int index = i * cols + j;
+				// If the pixel is not black, create a vertex
+				if (binary_image.data[index] > 0)
+				{
+					numVert++;
+					// Vertical index has to be squashed along the vertical axis to
+					// compensate for scaling, therefore (id / sampling) = Z position
+					fprintf(Objfp, "v %d %d %d\n", j, i, id / sampling);
+					fprintf(Outfp, "%d %d %d\n", j, i, id / sampling);
+				}
+			}
+		imwrite(binary_images_directory + filename, binary_image);
+		cout << "Write binary image '" << filename << "'" << endl;
+	}
+
+	// Update vertex count and version for OUT file
+	fseek(Outfp, 0L, SEEK_SET);
+	rewind(Outfp);
+	fprintf(Outfp, "# %s\n", VERSION.c_str());
+	fprintf(Outfp, "%20d\n", numVert);
+
+	// Clean up
+	fclose(Outfp);
+	fclose(Objfp);
+	return 0;
+
 }
 
 /*
@@ -583,7 +677,7 @@ int main(int argc, char **argv)
 	{
 		// Configure program options
 		// Required parameters
-		int soil_removal_flag;			   // soil removal flag
+		bool soil_removal_flag;			   // soil removal flag
 		string grayscale_images_directory; // grayscale image directory (PNG)
 		int sampling;					   // downsampling factor (i.e., a sampling of 2 processes half the total grayscale slices)
 		string binary_images_directory;	   // binary image directory
@@ -591,18 +685,33 @@ int main(int argc, char **argv)
 		string filepath_obj;			   // OBJ output filepath (root system)
 		string filepath_out_soil;		   // OUT output filepath (soil)
 		string filepath_obj_soil;		   // OBJ output filepath (soil)
+		bool manual_segmentation;		   // manual segmentation flag (use lower and upper bounds for segmentation)
+		int lower_bound;				   // Lower bound for user-defined threshold
+		int upper_bound;				   // Upper bound for user-defined threshold
 
 		po::options_description generic("");
-		generic.add_options()("help,h", "show this help message and exit")("version,V", "show program's version number and exit")("verbose,v", "Increase output verbosity. (default: False)");
+		generic.add_options()
+			("help,h", "show this help message and exit")
+			("version,V", "show program's version number and exit")
+			("verbose,v", "increase output verbosity. (default: False)")
+			("sampling", po::value<int>(&sampling)->default_value(2), "downsampling factor")
+			("remove-soil", po::bool_switch(&soil_removal_flag), "enable automatic soil removal")
+			("manual,m", po::bool_switch(&manual_segmentation), "enable manual segmentation (you should provide lower and upper bounds)")
+			("lower-bound,l", po::value<int>(&lower_bound)->default_value(0), "set lower bound value to use during segmentation (inclusive)")
+			("upper-bound,u", po::value<int>(&upper_bound)->default_value(255), "set upper bound value to use during segmentation (inclusive)");
 
 		po::options_description hidden("Hidden options");
-		hidden.add_options()("soil-removal-flag", po::value<int>(&soil_removal_flag), "enable automatic soil removal")("grayscale-images-directory", "filepath to directory containing grayscale images")("sampling", po::value<int>(&sampling), "downsampling factor")("binary-images-directory", "filepath to directory to store binary images")("out-filepath", "filepath for produced .OUT file")("obj-filepath", "filepath for produced .OBJ file")("out-filepath-soil", "filepath for produced .OUT file (soil)")("obj-filepath-soil", "filepath for produced .OBJ file (soil)");
+		hidden.add_options()
+		("grayscale-images-directory", "filepath to directory containing grayscale images")
+		("binary-images-directory", "filepath to directory to store binary images")
+		("out-filepath", "filepath for produced .OUT file")
+		("obj-filepath", "filepath for produced .OBJ file")
+		("out-filepath-soil", "filepath for produced .OUT file (soil)")
+		("obj-filepath-soil", "filepath for produced .OBJ file (soil)");
 
 		po::positional_options_description pos_opts_desc;
 		pos_opts_desc
-			.add("soil-removal-flag", 1)
 			.add("grayscale-images-directory", 1)
-			.add("sampling", 1)
 			.add("binary-images-directory", 1)
 			.add("out-filepath", 1)
 			.add("obj-filepath", 1)
@@ -633,14 +742,12 @@ int main(int argc, char **argv)
 		if (vm.count("help") ||
 			// If any arguments are missing
 			!(
-				vm.count("soil-removal-flag") &&
 				vm.count("grayscale-images-directory") &&
-				vm.count("sampling") &&
 				vm.count("binary-images-directory") &&
 				vm.count("out-filepath") &&
 				vm.count("obj-filepath")))
 		{
-			cout << "usage: " << argv[0] << " [-h] [-v] [-V] REMOVE_SOIL_FLAG GRAYSCALE_IMAGE_DIRECTORY SAMPLING BINARY_IMAGE_DIRECTORY OUT_FILEPATH OBJ_FILEPATH " << endl;
+			cout << "usage: " << argv[0] << " [-h] [-v] [-V] GRAYSCALE_IMAGE_DIRECTORY BINARY_IMAGE_DIRECTORY OUT_FILEPATH OBJ_FILEPATH " << endl;
 			cout << generic << endl;
 			return 0;
 		}
@@ -659,12 +766,15 @@ int main(int argc, char **argv)
 		filepath_out = vm["out-filepath"].as<string>();
 		filepath_obj = vm["obj-filepath"].as<string>();
 
-		cout << "Soil removal flag\t" << to_string(soil_removal_flag) << endl;
+		cout << "Soil removal flag:\t" << std::boolalpha << soil_removal_flag << endl;
 		cout << "Grayscale images:\t" << grayscale_images_directory << endl;
-		cout << "Sampling\t" << to_string(sampling) << endl;
-		cout << "Binary images:\t" << binary_images_directory << endl;
-		cout << "OUT filepath:\t" << filepath_out << endl;
-		cout << "OBJ filepath:\t" << filepath_obj << endl;
+		cout << "Sampling:\t\t" << to_string(sampling) << endl;
+		cout << "Binary images:\t\t" << binary_images_directory << endl;
+		cout << "OUT filepath:\t\t" << filepath_out << endl;
+		cout << "OBJ filepath:\t\t" << filepath_obj << endl;
+		cout << "Manual flag:\t\t" << std::boolalpha << manual_segmentation << endl;
+		cout << "Lower bound:\t\t" << to_string(lower_bound) << endl;
+		cout << "Upper bound:\t\t" << to_string(upper_bound) << endl;
 
 		// Perform segmentation
 		if (soil_removal_flag)
@@ -675,6 +785,10 @@ int main(int argc, char **argv)
 			cout << "OBJ filepath (soil):\t" << filepath_obj_soil << endl;
 
 			segment(grayscale_images_directory, sampling, binary_images_directory, filepath_out, filepath_obj, filepath_out_soil, filepath_obj_soil);
+		}
+		else if (manual_segmentation)
+		{
+			user_defined_segment(grayscale_images_directory, sampling, binary_images_directory, filepath_out, filepath_obj, lower_bound, upper_bound);
 		}
 		else
 		{
