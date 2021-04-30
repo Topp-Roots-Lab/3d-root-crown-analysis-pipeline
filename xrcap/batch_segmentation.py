@@ -20,6 +20,9 @@ def run(cmd, lock, position, **kwargs):
 	# Set up values for progress bar
 	volume_name = os.path.basename(os.path.normpath(cmd[2]))
 	text = f"Segmenting '{volume_name}'"
+	# Case: manual segmentation from CSV
+	if len(cmd) >= 12:
+		text += f" (bounds: [{cmd[9]}, {cmd[11]}])"
 	fp = os.path.normpath(cmd[1])
 	slice_count = round(len([ img for img in os.listdir(fp) if img.endswith('png')  ]) / sampling)
 
@@ -71,7 +74,7 @@ def csv(*args, **kwargs):
 	"""
 	TODO
 	"""
-	logging.info(kwargs)
+	logging.debug(kwargs)
 	csv_fp = kwargs["csv"] # relative or absolute paths in a csv
 	path = kwargs["path"] # search path for data
 	sampling = kwargs["sampling"]
@@ -80,23 +83,24 @@ def csv(*args, **kwargs):
 	try:
 		# Load file list and bounds
 		df = pd.read_csv(csv_fp)
-		print(df)
-		logging.info(f"{df.columns=}")
+		logging.debug(df)
+		logging.debug(f"{df.columns=}")
 
 		# Check that each file exists
 		fpaths = df["Predicted Grayscale Image Folder"]
-		pprint(fpaths)
+		logging.debug(fpaths)
 		df["path_exists"] = fpaths.apply(lambda x: os.path.exists(x) and os.path.isdir(x))
 
 		dff = df[["UID", "Predicted Grayscale Image Folder", "Lower Bound Threshold Value (uint8)", "Upper Bound Threshold Value (uint8)", "path_exists"]]
 		validated_df = dff[dff["path_exists"]]
-		pprint(validated_df)
+		logging.debug(validated_df)
 
 		# Count the number of existing scans
 		logging.info(f"Found {len(validated_df)} volume(s).")
 		logging.debug(validated_df)
-		logging.warning(f"Unable to find the following volume(s).")
-		logging.warning(list(df[~dff["path_exists"]]["Basename"]))
+		if len(validated_df) < len(df):
+			logging.warning(f"Unable to find the following volume(s).")
+			logging.warning(list(df[~dff["path_exists"]]["Basename"]))
 
 		# Restructure data into a list of dictionary objects for easier access during iteration
 		validated_scans = validated_df.to_dict(orient="records")
