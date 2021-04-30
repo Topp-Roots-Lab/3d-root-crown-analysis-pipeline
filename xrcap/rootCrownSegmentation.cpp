@@ -214,7 +214,6 @@ bool hasCircularArtifact(int slice_index, cv::Mat &data)
  */
 int user_defined_segment(string grayscale_images_directory, int sampling, string binary_images_directory, string filepath_out, string filepath_obj, int lowerb = 0, int upperb =  255)
 {
-	std::cout << "LINE 217" << std::endl;
 	// Initialize OUT file
 	FILE *Outfp = fopen(filepath_out.c_str(), "w");
 
