@@ -273,7 +273,7 @@ def process(args, fp, subfolder, thickness, scale, depth, pos, pbar_position):
                 if stderr:
                     logging.error(f'[stderr]\n{stderr.decode()}')
 
-            biomass_hist, convexhull_hist = asyncio.run(process_kde_with_matlab(f"kde-traits '{os.path.join(fp, subfolder)}' {thickness} {args.sampling}"))
+            biomass_hist, convexhull_hist = asyncio.run(process_kde_with_matlab(f"kde-traits '{os.path.join(fp, subfolder)}' {thickness} {args.sampling} {args.depth}"))
 
         if len(solidity) < depth:
             solidity = np.append(solidity, np.zeros(int(depth-len(solidity)))) # pad with zeros for missing depth values
@@ -318,14 +318,16 @@ def process(args, fp, subfolder, thickness, scale, depth, pos, pbar_position):
         traits["Elongation"] = elong
         traits["Flatness"] = flat
         traits["Football"] = football
+
+        kde_steps = math.floor(args.depth / 10) + 1
         if args.kde:
-            for i in range(1, 21):
+            for i in range(1, kde_steps):
                 traits[f"Biomass_vhist{i}"] = biomass_hist[i-1]
-            for i in range(1, 21):
+            for i in range(1, kde_steps):
                 traits[f"Convexhull_vhist{i}"] = convexhull_hist[i-1]
 
         solidity_hist = np.squeeze(solidity_hist)
-        for i in range(1, 21):
+        for i in range(1, kde_steps):
             traits[f"Solidity_vhist{i}"] = solidity_hist[i-1]
 
         densityS = (densityS1 + densityS2)/2
@@ -407,11 +409,13 @@ def main(args):
                     logging.debug(f"Scale set to '{scale}'")
                     ## Changed (round)(200/scale) because in Python2 round will produce a float - (ex. 952.0) and now makes integer 952
                     # Calculate the number of expected images
-                    depth = int((round)(200/scale))
+                    kde_depth = args.depth
+                    kde_depth_cm = math.floor(kde_depth / 10)
+                    depth = int((round)(kde_depth/scale))
                     logging.debug(f"{depth=}")
                     # Create a list of evenly spaced numbers based on the depth
                     # NOTE(tparker): Added extra forward slash to preserve integer division for migration from Python 2.7
-                    pos = np.linspace(depth//20, depth, 20)[:, None]
+                    pos = np.linspace(depth//kde_depth_cm, depth, kde_depth_cm)[:, None]
                     logging.debug(pos)
 
                     p.apply_async(process, args=(args, fp, subfolder, thickness, scale, depth, pos, pbar_position), callback=async_callback, error_callback=async_error_callback)
