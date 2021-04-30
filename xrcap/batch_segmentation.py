@@ -2,12 +2,10 @@
 # -*- coding: utf-8 -*-
 import logging
 import os
-import shutil
 import subprocess
 import threading
 from multiprocessing import Pool
 from multiprocessing.pool import ThreadPool
-from pprint import pformat, pprint
 
 import pandas as pd
 from tqdm import tqdm
