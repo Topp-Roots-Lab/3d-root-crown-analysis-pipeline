@@ -296,9 +296,9 @@ If you encounter any error, problem, or would like to suggest a feature, please 
 
 ## Related Projects
 
-- [python-rawtools](https://github.com/Topp-Roots-Lab/python-rawtools/): library for consuming and manipulating x-ray volume data in `.raw` format.
-- [Gia3D](https://github.com/Topp-Roots-Lab/Gia3D): 3D phenotyping tool
-- [xrt-dmt](https://github.com/Topp-Roots-Lab/xrt-dmt) : data management tool for tracking and archiving XRT (meta)data
+- [python-rawtools](https://github.com/Topp-Roots-Lab/python-rawtools/): A library for consuming and manipulating x-ray volume data in `.raw` format.
+- [Gia3D](https://github.com/Topp-Roots-Lab/Gia3D): A tool for measuring 3D traits from point cloud data
+- [xrt-dmt](https://github.com/Topp-Roots-Lab/xrt-dmt) : A data management tool for tracking and archiving XRT (meta)data
 
 
 ### Credits
