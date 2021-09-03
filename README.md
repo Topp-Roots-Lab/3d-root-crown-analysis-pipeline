@@ -34,7 +34,10 @@ The results of this pipeline are a `.TSV` of features and a `.CSV` of traits cal
 
 ### Description of Traits
 
-Data Structures
+#### Glossary
+
+- 
+
 Voxset
 an unordered set of voxels that represent an object of interest, represented by linear indices converted from coordinate space. This is extended from a hashmap/set data structure.
 
@@ -293,8 +296,9 @@ If you encounter any error, problem, or would like to suggest a feature, please 
 
 ## Related Projects
 
-* [python-rawtools](https://github.com/Topp-Roots-Lab/python-rawtools/): library for consuming and manipulating x-ray volume data in `.raw` format.
-* [xrt-dmt](https://github.com/Topp-Roots-Lab/xrt-dmt) : data management tool for tracking and archiving XRT (meta)data
+- [python-rawtools](https://github.com/Topp-Roots-Lab/python-rawtools/): library for consuming and manipulating x-ray volume data in `.raw` format.
+- [Gia3D](https://github.com/Topp-Roots-Lab/Gia3D): 3D phenotyping tool
+- [xrt-dmt](https://github.com/Topp-Roots-Lab/xrt-dmt) : data management tool for tracking and archiving XRT (meta)data
 
 
 ### Credits
