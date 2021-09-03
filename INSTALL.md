@@ -65,7 +65,7 @@ ls
 
 ```bash
 # Clone repo
-sudo git clone https://github.com/Topp-Roots-Lab/3d-root-crown-analysis-pipeline.git /opt/3drcap/
+sudo git clone https://github.com/Topp-Roots-Lab/3d-root-crown-analysis-pipeline.git /opt/xrcap/
 # Install with Makefile (requires pip)
 sudo make install
 ```

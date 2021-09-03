@@ -97,7 +97,7 @@ install: clean ## install the package to the active Python's site-packages
 	# mkdir -pv /var/log/xrcap/batch_segmentation /var/log/xrcap/batch_skeleton /var/log/xrcap/qc_binary_images /var/log/xrcap/qc_point_clouds /var/log/xrcap/rootCrownImageAnalysis3D
 	# chmod -Rv 2777 /var/log/xrcap
 
-	pip install .
+	/usr/bin/env python3 -m pip install .
 
 uninstall: clean ## remove package
-	pip uninstall -y xrcap
+	/usr/bin/env python3 -m pip uninstall -y xrcap
