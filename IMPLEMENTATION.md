@@ -4,15 +4,27 @@ This document provides more technical descriptions of data ingest, internal data
 
 ## Data and how it's represented
 
-The input for this pipeline typically starts with a `.raw` X-ray scan. They should be **unsigned 16-bit byte sequences**. By convension, the object of interest (root crown) is oriented such that the stalk is near "top" of the volume and root tips towards the "bottom" of the volume. It's highly recommended to follow this convention. Keep in mind that if you choose to invert your input data, you will need to account for that when interpreting the phenotypes.
+The input for this pipeline typically starts with a `.raw` X-ray scan. They should be **unsigned 16-bit byte sequences**. By convention, the object of interest (root crown) is oriented such that the stalk is near "top" of the volume and root tips towards the "bottom" of the volume. It's highly recommended to follow this convention. Keep in mind that if you choose to invert your input data, you will need to account for that when interpreting the phenotypes.
 
 {INSERT EXAMPLE OF SCAN WITH SIDE PROJECTION}
 
-We'll assume that you have already segmented your data and have a `.out` and binary image sequence of your data. 
+The data has to be transformed a few times during processing. It starts out as the aforementioned `.raw` format that should be accompanied by a `.dat` that contains important metadata about the resolution. The resolution can be equated to the real-world dimensions of each byte or "voxel" in the paired `.raw`. The `.dat` is not strictly necessary for this pipeline, but it does help for interpreting the results.
+
+For details on usage, see [usage](USAGE.md) documentation. However, to summarize the first two steps in the pipeline, `raw2img` and `batch-segmentation`, they split the `.raw` into many uint8 `.png` horizontal grayscale slices. Each grayscale slice is converted into a uint8 `.png` binary slice. In addition, segmentation will produce a `.out` and `.obj`. These are point cloud representations of the same binary slices. The `.out` is used by [Gia3D] and binary `.png` files are used by [rootCrownImageAnalysis3D].
+
+{INSERT EXAMPLE OF GRAYSCALE SLICE} {INSERT EXAMPLE OF BINARY SLICE}
+
+The binary slices are self-explanatory and are used by both rootCrownImageAnalysis3D and New3DTraitsForRPF. The point cloud data is used bye Gia3D, and how it's used by Gia3D may require explanation. Each point in the point cloud is converted to a voxel, and therefore has volume. Internally, the point cloud is stored as a hashmap whose key-value pair is xyz-coordinates to a value. Although this provides important information about our root system, we can apply thinning to it to create a skeleton for even more information.
+
+{INSERT EXAMPLE OF VOXEL CTM/WRL} {INSERT EXAMPLE OF SKELETON CTM/WRL}
+
+The figure on the left is the voxel representation and it is equivalent to the binary images and point cloud data. This is often referred to as the root model, root system, or point cloud data. The figure on the right is the skeletonized version of the root model; often referred to as the skeleton (model). The root model is a hashmap of coordinate to volume. The skeleton is a hashmap of coordinate to distance to the root model's surface.
+
+
 
 ## Measuring and calculating traits
 
-Each trait is described in detail below. The associated code base that implements the trait is identified.
+Given the nature of a pipeline, the underlying submodules/packages/components have been developed as different projects and are therefore spread across a few repositories. These are this very repo, [Gia3D], [New3DTraitsForRPF], and [rawtools]. The associated code base that implements each trait is identified below.
 
 ### SurfaceArea
 
