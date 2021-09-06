@@ -488,7 +488,7 @@ END
 
 ### volume
 
-An estimated volume for the root model based on the volume of a right cylinder. Implemented by [Gia3D]. This uses the estimated number of iterations in a thinning algorithm as the radius of the cylinder. The height of each cylinder is assumed to be 1.
+An estimated volume for the root model based on the volume of a right cylinder. Implemented by [Gia3D]. This uses the estimated number of iterations in a thinning algorithm as the radius of the cylinder. The height of each cylinder is assumed to be 1 voxel.
 
 The number of iterations is estimated by an algorithm developed by Patrick Min. Said algorithm simply erodes boundary voxels of the object without changing its topology. The method described by Kálmán Palágyi and Attila Kuba in _Directional 3D Thinning Using 8 Subiterations_, Springer-Verlag Lecture Notes in Computer Science volume 1568, pp. 325-336, 1999.
 
@@ -505,13 +505,13 @@ PROCEDURE approximateVolume:
         Set r to erosion distance found in E for v.
         Add r² to C.
 
-    Return C * πr.
+    Return C * π.
 END
 ```
 
 ### Surface_area
 
-An estimated surface area for the root model based on the surface area of the lateral surface of a right cylinder. Implemented by [Gia3D]. This uses the estimated number of iterations in a thinning algorithm as the radius of the cylinder. The height of each cylinder is assumed to be 1.
+An estimated surface area for the root model based on the surface area of the lateral surface of a right cylinder. Implemented by [Gia3D]. This uses the estimated number of iterations in a thinning algorithm as the radius of the cylinder. The height of each cylinder is assumed to be 1 voxel.
 
 The number of iterations is estimated by an algorithm developed by Patrick Min. Said algorithm simply erodes boundary voxels of the object without changing its topology. The method described by Kálmán Palágyi and Attila Kuba in _Directional 3D Thinning Using 8 Subiterations_, Springer-Verlag Lecture Notes in Computer Science volume 1568, pp. 325-336, 1999.
 
@@ -534,8 +534,7 @@ END
 
 ### av_radius
 
-
-An estimated surface area for the root model based on the surface area of the lateral surface of a right cylinder. Implemented by [Gia3D]. This uses the estimated number of iterations in a thinning algorithm as the radius of the cylinder. The height of each cylinder is assumed to be 1.
+An estimated average radius for all roots for the root model. Implemented by [Gia3D]. This uses the estimated number of iterations in a thinning algorithm as the radius at each point/voxel.
 
 The number of iterations is estimated by an algorithm developed by Patrick Min. Said algorithm simply erodes boundary voxels of the object without changing its topology. The method described by Kálmán Palágyi and Attila Kuba in _Directional 3D Thinning Using 8 Subiterations_, Springer-Verlag Lecture Notes in Computer Science volume 1568, pp. 325-336, 1999.
 
@@ -554,9 +553,9 @@ PROCEDURE approximateAverageRootRadius:
         Add r to C.
         Increment voxelCount by 1.
 
-    Set totalSurfaceArea to C * 2π.
+    Set totalRadii to C * 2π.
 
-    Return totalSurfaceArea / voxelCount.
+    Return totalRadii / voxelCount.
 END
 ```
 
