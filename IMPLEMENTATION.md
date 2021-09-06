@@ -410,6 +410,7 @@ PROCEDURE countEdges:
             Add E to EDGES.
 
     Return the number of elements in EDGES.
+END
 ```
 
 ### AvgEdgeLength
@@ -463,6 +464,7 @@ PROCEDURE countEdges:
                 Add D to totalEdgeLength.
 
     Return totalEdgeLength / edgeCount.
+END
 ```
 
 ### Number_tips
@@ -481,6 +483,7 @@ PROCEDURE countRootTips:
             Increment tipCount by 1.
 
     Return tipCount.
+END
 ```
 
 ### volume
@@ -503,6 +506,7 @@ PROCEDURE approximateVolume:
         Add r² to C.
 
     Return C * πr.
+END
 ```
 
 ### Surface_area
@@ -525,6 +529,7 @@ PROCEDURE approximateSurfaceArea:
         Add r to C.
 
     Return C * 2π.
+END
 ```
 
 ### av_radius
@@ -551,7 +556,8 @@ PROCEDURE approximateAverageRootRadius:
 
     Set totalSurfaceArea to C * 2π.
 
-    Return totalSurfaceArea / voxelCount;
+    Return totalSurfaceArea / voxelCount.
+END
 ```
 
 Implemented by [Gia3D].
