@@ -1,22 +1,27 @@
 # 3-D Root Crown Analysis Pipeline
 
-A pipeline to analyze 3D volumes of root crowns.
+A pipeline to analyze 3D X-ray volumes of root crowns.
 
-This pipeline is composed of four modules, and as such, these are depencides:
-1. Data preprocessing: [python-rawtools](https://github.com/Topp-Lab-Roots/python-rawtools/)
-1. 
+## Table of Contents
 
 - [Installation](#installation)
+  - [Dependencies](#dependencies)
 - [Input & Output](#input)
   - [Description of Traits](#description-of-traits)
 - [Usage](#usage)
-- [Descriptions](#description)
-- [Workflow](#workflow)
-- [Troubleshooting](#troubleshooting)
 - [Additional Information](#additional-information)
 - [Credits](#credits)
 
 ## Installation
+
+### Dependencies
+
+This pipeline was assembled over the years, so many projects and code bases have contributed to make this pipeline what it is. As such, several dependencies are required to run this pipeline. When possible, dependencies are included for easier installation. You will need to install four core components to use this pipeline. Although details are included in our installation guide, if you encounter any issues, it's best to reference the module's own repository and documentation for assistance.
+
+1. 3d-root-crown-analysis-pipeline (this repo)
+1. [python-rawtools](https://github.com/Topp-Roots-Lab/python-rawtools/)
+1. [Gia3D](https://github.com/Topp-Roots-Lab/Gia3D)
+1. [New3DTraitsForRPF](https://github.com/Topp-Roots-Lab/New3DTraitsForRPF)
 
 See installation guide [here](INSTALL.md).
 
@@ -86,12 +91,6 @@ This is an overview of the execution sequence for analyzing root crown x-ray sca
 <p align="center">
   <img alt="Root Crown Analysis Pipeline Flowchart" src="docs/img/root-crown-pipeline-flowchart.png">
 </p>
-
-### Troubleshooting
-
-See troubleshooting guide [here](TROUBLESHOOTING.md).
-
-If you encounter an unknown issues or would like additional assistance, please submit a GitHub issue: <https://github.com/Topp-Roots-Lab/3d-root-crown-analysis-pipeline/issues>
 
 ### Additional Information
 

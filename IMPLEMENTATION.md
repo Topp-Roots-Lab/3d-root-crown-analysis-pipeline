@@ -2,44 +2,60 @@
 
 This document provides more technical descriptions of data ingest, internal data structures, and how each trait is calculated.
 
-## Data and how it's represented
+## Data and How It's Represented
 
-The input for this pipeline typically starts with a `.raw` X-ray scan. They should be **unsigned 16-bit byte sequences**. By convention, the object of interest (root crown) is oriented such that the stalk is near the "top" of the volume and root tips towards the "bottom" of the volume. It's highly recommended to follow this convention. Keep in mind that if you choose to invert your input data, you will need to account for that when interpreting your resultant phenotypes.
+The input for this pipeline typically starts with a `.raw` X-ray scan. It should be an **unsigned 16-bit byte sequence**. By convention, the object of interest (root crown) is oriented such that the stalk is near the "top" of the volume and root tips towards the "bottom" of the volume. It's highly recommended to follow this convention. Keep in mind that if you choose to invert your input data, you will need to account for that when interpreting your resultant phenotypes.
 
-{INSERT EXAMPLE OF SCAN WITH SIDE PROJECTION}
+<div align="center">
+    <a href="docs/img/preview-side-projection.png"><img src="docs/img/preview-side-projection.png" width="600px"></a>
+</div>
 
-The data has to be transformed a few times during processing. It starts out as the aforementioned `.raw` format that should be accompanied by a `.dat` that contains important metadata about the resolution. The resolution can be equated to the real-world dimensions of each byte or "voxel" in the paired `.raw`. The `.dat` is not strictly necessary for this pipeline, but it does help for interpreting the results.
+Above is an example of what an orthographic side projection of a `.raw` volume.
 
-For details on usage, see [usage](USAGE.md) documentation. However, to summarize the first two steps in the pipeline, `raw2img` and `batch-segmentation`, they split the `.raw` into many uint8 `.png` horizontal grayscale slices. Each grayscale slice is converted into a uint8 `.png` binary slice. In addition, segmentation will produce a `.out` and `.obj`. These are point cloud representations of the same binary slices. The `.out` is used by [Gia3D] and binary `.png` files are used by [rootCrownImageAnalysis3D].
+In order to get meaningful information from our sample, the data has to be in the transformed into an appropriate format. It starts out as the aforementioned `.raw` format that should be accompanied by a `.dat` that contains important metadata about its resolution. The resolution can be equated to the real-world dimensions of each byte or "voxel" in its counterpart `.raw`. The `.dat` is not strictly necessary for this pipeline, but it does help for interpreting the results.
 
-{INSERT EXAMPLE OF GRAYSCALE SLICE} {INSERT EXAMPLE OF BINARY SLICE}
+Our first transformation of the data is to split it into slices and segment it. For details on usage, see [usage](USAGE.md) documentation. However, to summarize the first two steps in the pipeline, `raw2img` and `batch-segmentation`, they split the `.raw` into many uint8 `.png` horizontal grayscale slices. Each grayscale slice is converted into a uint8 `.png` binary slice. In addition, segmentation will produce a `.out` and `.obj`. These are point cloud representations of the same binary slices. The `.out` is used by [Gia3D] and the binary `.png` files are used by [rootCrownImageAnalysis3D]. See below for an example of a grayscale horizontal slice (left) and a binary slice (right).
 
-The binary slices are self-explanatory and are used by both rootCrownImageAnalysis3D and New3DTraitsForRPF. The point cloud data is used bye Gia3D, and how it's used by Gia3D may require explanation. Each vertex in the point cloud is converted to a voxel, and therefore has volume. Internally, the point cloud is stored as a hashmap whose key-value pair is xyz-coordinates to a value. Although this provides important information about our root system, we can apply thinning to it to create a skeleton for even more information.
+<div align="center">
+    <a href="docs/img/preview-grayscale-slice.png"><img src="docs/img/preview-grayscale-slice.png" width="300px"></a>
+    <a href="docs/img/preview-binary-slice.png"><img src="docs/img/preview-binary-slice.png" width="300px"></a>
+</div>
 
-{INSERT EXAMPLE OF VOXEL CTM/WRL} {INSERT EXAMPLE OF SKELETON CTM/WRL}
+The binary slices are self-explanatory and are used by both rootCrownImageAnalysis3D and New3DTraitsForRPF. The point cloud data is used by Gia3D, and how it's used by Gia3D benefits from explanation. Each vertex in the point cloud is converted to a voxel, and therefore has volume. Internally, the point cloud is stored as a hashmap whose key-value pair is xyz-coordinates to a value. Although this provides important information about our root system, we can apply thinning to it to create a skeleton for even more information. See below for an exmple of a root model (left) and its counterpart skeleton model (right). These are orthographic screenshots taken in Meshlab.
 
-The figure on the left is the voxel representation. This is often referred to as the root model, root system, or point cloud data. The last alias is a bit of a misnomer, but I'll explain shortly. The figure on the right is the skeletonized version of the root model; often referred to as the skeleton (model). Both are stored and manipulated as hashmaps. The root model maps coordinates to volume. The skeleton maps coordinate to erosion distance with respect to the root model's surface.
+<div align="center">
+    <a href="docs/img/preview-root-model.png"><img src="docs/img/preview-root-model.png" width="300px"></a>
+    <a href="docs/img/preview-skeleton-model.png"><img src="docs/img/preview-skeleton-model.png" width="300px"></a>
+</div>
+
+The figure on the left is the point cloud data represented by voxels. This is often referred to as the root model, root system, or point cloud data. The last alias is a bit of a misnomer, but I'll explain shortly. The figure on the right is the skeletonized version of the root model; often referred to as the skeleton (model). Both are stored and manipulated as hashmaps. The root model maps coordinates to volume. The skeleton maps coordinates to erosion distance with respect to the root model's surface.
 
 The reason why "point cloud data" is a misnomer for the voxelized data is because of how the point cloud data is preprocessed before measurement. The `.out` file is loaded directly as the root model but is immediately "repaired". This act of repairing the point cloud data attempts to find the **largest single connected component**&mdash;effectively removing any floating artifacts left behind from segmentation. This process does so by finding all connected components from the point cloud data, joining them, and closing any cavities. Once the root model is repaired, it calculates a Euclidean distance transform map as seen below.
 
-![dtmap_example_slice](docs/img/dtmap_slice_example.png)
+<div align="center">
+    <a href="docs/img/dtmap_slice_example.png"><img src="docs/img/dtmap_slice_example.png" width="600px"></a>
+</div>
 
-This figure shows a single horizontal (i.e., cross-sectional) slice of a stalk. The stalk was selected because it is perpendicular to our view, so we can see straight down the length of it. The lighter, yellow color indicates a farther distance from an edge, and in contrast, the darker the color, the closer the distance to an edge. Keep in mind that this happens in 3D space, not just within the edges of the slice. If you're curious as to why there are gaps within the stalk, they are air pockets. This particular sample had been desiccated before scanning.
+This figure shows a single horizontal (i.e., cross-sectional) slice of a stalk. The stalk was selected because it is perpendicular to our view, so we can see straight down the length of it. The lighter, yellow color indicates a farther distance from an edge, and in contrast, the darker the color, the shorter the distance to an edge. Keep in mind that this happens in 3D space, not just within the edges of the slice. If you're curious, the gaps within the stalk are air pockets. This particular sample had been desiccated before scanning.
 
-Now we have our root model and its ready for measurement. However, we haven't quite created a skeleton of it. We first copy the root model and work on that. To create the our skeleton, we apply thinning to the copy of our root model and then scale its axes appropriately. This applies a thinning algorithm developed by Patrick Min. Said algorithm simply erodes boundary voxels of the object without changing its topology. The method described by Kálmán Palágyi and Attila Kuba in _Directional 3D Thinning Using 8 Subiterations_, Springer-Verlag Lecture Notes in Computer Science volume 1568, pp. 325-336, 1999.
+Now we have our root model, and it's ready for measurement. However, we haven't quite created a skeleton of it. We first copy the root model and work on that. To create the a skeleton, we apply thinning to a copy of our root model and then scale its axes appropriately. This applies a thinning algorithm developed by Patrick Min. Said algorithm simply erodes boundary voxels of the object without changing its topology. The method described by Kálmán Palágyi and Attila Kuba in _Directional 3D Thinning Using 8 Subiterations_, Springer-Verlag Lecture Notes in Computer Science volume 1568, pp. 325-336, 1999.
 
-The erosion distances are computed during the thinning algorithm, they are estimated by the number of the iterations which it takes to erode the shape until one-voxel wide curve remains.
+Erosion distances are computed during the thinning algorithm; they are estimated by the number of the iterations which it takes to erode the shape until one-voxel wide curve remains. This information is important some downstream estimations.
 
-Finally, we have all the fundamental data structures needed for [Gia3D] to measure its traits.
+**Done!** Or, we finally have all the fundamental data structures needed for [Gia3D] to measure its traits:
 
 1. Root model
 1. Distance transform map
 1. Skeleton
 1. Erosion distances
 
-## Measuring and calculating traits
+## Measuring and Calculating Traits
 
-Given the nature of a pipeline, the underlying submodules/packages/components have been developed as different projects and are therefore spread across a few repositories. These are this very repo, [Gia3D], [New3DTraitsForRPF], and [rawtools]. The associated code base that implements each trait is identified along side their descriptions.
+Given the nature of a pipeline, the underlying submodules/packages/components have been developed as different projects and are therefore spread across a few repositories. These are [3d-root-crown-analysis-pipeline](README.md) (this repo), [Gia3D], [New3DTraitsForRPF], and [rawtools]. The associated code base that implements each trait is identified along side its description.
+
+> **Note**: Since these traits were developed over the years by many contributors, conventions are **not** consistent. One inconsistency that stands out is the orientation of our axes in 3D space. Most often, Y represents the depth of the volume and starts at the stalk-side of the volume at 0. As you move towards the root tips, the value of Y increases. The X and Z axes represent the 2D coordinates within a horizontal slice.
+>
+> That being said, this is not true for all code bases, so if you review the source code for any of the underlying modules, make sure to deouble check its documentation and conventions.
 
 ### SurfaceArea
 
@@ -89,7 +105,7 @@ The ratio of the volume to the convex hull volume. Implemented by [Gia3D].
 
 ### MedR
 
-The 50th percentile of the number of connected components for all slices. The number of connected components represents the number of roots that intersect a given slice. Implemented by [Gia3D].
+The 50th percentile of the number of connected components for all slices. The number of connected components represents the number of roots that intersect a given horizontal slice. Implemented by [Gia3D].
 
 ```text
 Input: A set of voxels, I, containing each voxel's respective coordinates.
@@ -121,7 +137,7 @@ END
 
 ### MaxR
 
-The 84th percentile of the number of connected components for all slices. The number of connected components represents the number of roots that intersect a given slice. Implemented by [Gia3D].
+The 84th percentile of the number of connected components for all slices. The number of connected components represents the number of roots that intersect a horizontal given slice. Implemented by [Gia3D].
 
 ```text
 Input: A set of voxels, I, containing each voxel's respective coordinates.
@@ -216,7 +232,7 @@ END
 
 ### TotalLength
 
-Count of voxels that represent a skeleton of the root system. Implemented by [Gia3D].
+Count of voxels that represent a skeleton of the root system (i.e., skeleton model). Implemented by [Gia3D].
 
 ```text
 Input: A set of voxels, I, containing each voxel's respective coordinates in the skeleton.
@@ -231,13 +247,13 @@ END
 
 ### SRL
 
-Ratio of total root length to volume. Implemented by [Gia3D].
+Ratio of total root length to volume (i.e., **V**olume). Implemented by [Gia3D].
 
 <img src="https://latex.codecogs.com/svg.image?\text{SRL}=\frac{\text{TotalLength}}{\text{Volume}}" title="\text{SRL}=\frac{\text{TotalLength}}{\text{Volume}}" />
 
 ### Length_Distr
 
-The ratio of root length in the upper 1⁄3 of the volume to the root length in the lower 2⁄3 of the volume. Implemented by [Gia3D].
+The ratio of root length in the upper 1⁄3 of the skeleton to the root length in the lower 2⁄3 of the skeleton. Implemented by [Gia3D].
 
 ```text
 Input: A set of voxels, I, containing each voxel's respective coordinates for the skeleton.
@@ -273,7 +289,7 @@ The ratio of the HorEqDiameter to the depth. Implemented by [Gia3D].
 
 The number of connected components made up of neighboring branches in the skeleton. Implemented by [Gia3D].
 
-This trait effectively counts the number of branching points in the root model. It uses the skeleton as the basis for this. To visualize what this means, see the figures below. Full disclosure, these models were *downsampled* point cloud representations, as the full resolution too difficult to understand with the naked eye.
+This trait effectively counts the number of branching points in the root model. It uses the skeleton as the basis for this. To visualize what this means, see the figures below. Full disclosure, these models were *downsampled* point cloud representations, as the full resolution is far too dense to distinguish a cluster from branch by eye.
 
 <div align="center">
     <a href="docs/img/skeleton.png"><img src="docs/img/skeleton.png" width="300px"></a>
@@ -282,10 +298,10 @@ This trait effectively counts the number of branching points in the root model. 
 </div>
 
 - The left figure shows the skeleton.
-- The center figure shows a large, transparent bubble in the area of a bifurcation cluster.
+- The center figure shows a large, transparent bubble in the area of any bifurcation cluster.
 - The right figure shows the bifurcation clusters overlaid onto the skeleton.
 
-Notice that the density of white bubbles is relatively lower the closer to the root tips. This indicates that there is less frequent branching relative to the regions closer to the stalk.
+Notice that the density of white bubbles is relatively lower the closer to the root tips. This suggests that there is less frequent branching relative to the regions closer to the stalk.
 
 For details on how bifurcation clusters are identified and counted, see pseudocode below.
 
@@ -558,8 +574,6 @@ PROCEDURE approximateAverageRootRadius:
     Return totalRadii / voxelCount.
 END
 ```
-
-Implemented by [Gia3D].
 
 ### Elongation
 
