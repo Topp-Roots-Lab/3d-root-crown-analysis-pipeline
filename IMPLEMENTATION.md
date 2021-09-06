@@ -4,7 +4,7 @@ This document provides more technical descriptions of data ingest, internal data
 
 ## Data and how it's represented
 
-The input for this pipeline typically starts with a `.raw` X-ray scan. They should be **unsigned 16-bit byte sequences**. By convention, the object of interest (root crown) is oriented such that the stalk is near "top" of the volume and root tips towards the "bottom" of the volume. It's highly recommended to follow this convention. Keep in mind that if you choose to invert your input data, you will need to account for that when interpreting the phenotypes.
+The input for this pipeline typically starts with a `.raw` X-ray scan. They should be **unsigned 16-bit byte sequences**. By convention, the object of interest (root crown) is oriented such that the stalk is near the "top" of the volume and root tips towards the "bottom" of the volume. It's highly recommended to follow this convention. Keep in mind that if you choose to invert your input data, you will need to account for that when interpreting your resultant phenotypes.
 
 {INSERT EXAMPLE OF SCAN WITH SIDE PROJECTION}
 
@@ -14,189 +14,545 @@ For details on usage, see [usage](USAGE.md) documentation. However, to summarize
 
 {INSERT EXAMPLE OF GRAYSCALE SLICE} {INSERT EXAMPLE OF BINARY SLICE}
 
-The binary slices are self-explanatory and are used by both rootCrownImageAnalysis3D and New3DTraitsForRPF. The point cloud data is used bye Gia3D, and how it's used by Gia3D may require explanation. Each point in the point cloud is converted to a voxel, and therefore has volume. Internally, the point cloud is stored as a hashmap whose key-value pair is xyz-coordinates to a value. Although this provides important information about our root system, we can apply thinning to it to create a skeleton for even more information.
+The binary slices are self-explanatory and are used by both rootCrownImageAnalysis3D and New3DTraitsForRPF. The point cloud data is used bye Gia3D, and how it's used by Gia3D may require explanation. Each vertex in the point cloud is converted to a voxel, and therefore has volume. Internally, the point cloud is stored as a hashmap whose key-value pair is xyz-coordinates to a value. Although this provides important information about our root system, we can apply thinning to it to create a skeleton for even more information.
 
 {INSERT EXAMPLE OF VOXEL CTM/WRL} {INSERT EXAMPLE OF SKELETON CTM/WRL}
 
-The figure on the left is the voxel representation and it is equivalent to the binary images and point cloud data. This is often referred to as the root model, root system, or point cloud data. The figure on the right is the skeletonized version of the root model; often referred to as the skeleton (model). The root model is a hashmap of coordinate to volume. The skeleton is a hashmap of coordinate to distance to the root model's surface.
+The figure on the left is the voxel representation. This is often referred to as the root model, root system, or point cloud data. The last alias is a bit of a misnomer, but I'll explain shortly. The figure on the right is the skeletonized version of the root model; often referred to as the skeleton (model). Both are stored and manipulated as hashmaps. The root model maps coordinates to volume. The skeleton maps coordinate to erosion distance with respect to the root model's surface.
 
+The reason why "point cloud data" is a misnomer for the voxelized data is because of how the point cloud data is preprocessed before measurement. The `.out` file is loaded directly as the root model but is immediately "repaired". This act of repairing the point cloud data attempts to find the **largest single connected component**&mdash;effectively removing any floating artifacts left behind from segmentation. This process does so by finding all connected components from the point cloud data, joining them, and closing any cavities. Once the root model is repaired, it calculates a Euclidean distance transform map as seen below.
 
+![dtmap_example_slice](docs/img/dtmap_slice_example.png)
+
+This figure shows a single horizontal (i.e., cross-sectional) slice of a stalk. The stalk was selected because it is perpendicular to our view, so we can see straight down the length of it. The lighter, yellow color indicates a farther distance from an edge, and in contrast, the darker the color, the closer the distance to an edge. Keep in mind that this happens in 3D space, not just within the edges of the slice. If you're curious as to why there are gaps within the stalk, they are air pockets. This particular sample had been desiccated before scanning.
+
+Now we have our root model and its ready for measurement. However, we haven't quite created a skeleton of it. We first copy the root model and work on that. To create the our skeleton, we apply thinning to the copy of our root model and then scale its axes appropriately. This applies a thinning algorithm developed by Patrick Min. Said algorithm simply erodes boundary voxels of the object without changing its topology. The method described by Kálmán Palágyi and Attila Kuba in _Directional 3D Thinning Using 8 Subiterations_, Springer-Verlag Lecture Notes in Computer Science volume 1568, pp. 325-336, 1999.
+
+The erosion distances are computed during the thinning algorithm, they are estimated by the number of the iterations which it takes to erode the shape until one-voxel wide curve remains.
+
+Finally, we have all the fundamental data structures needed for [Gia3D] to measure its traits.
+
+1. Root model
+1. Distance transform map
+1. Skeleton
+1. Erosion distances
 
 ## Measuring and calculating traits
 
-Given the nature of a pipeline, the underlying submodules/packages/components have been developed as different projects and are therefore spread across a few repositories. These are this very repo, [Gia3D], [New3DTraitsForRPF], and [rawtools]. The associated code base that implements each trait is identified below.
+Given the nature of a pipeline, the underlying submodules/packages/components have been developed as different projects and are therefore spread across a few repositories. These are this very repo, [Gia3D], [New3DTraitsForRPF], and [rawtools]. The associated code base that implements each trait is identified along side their descriptions.
 
 ### SurfaceArea
 
-Count of exposed faces of root system. Implemented by [Gia3D].
+Count of exposed faces of root model. Implemented by [Gia3D].
+
+```text
+Input: A set of voxels, I, containing each voxel's respective coordinates.
+Output: Count of exposed faces as total surface area, S.
+Let v denote the current voxel.
+Let n denote a neighboring voxel's coordinates along one of the primary axes of V. I.e., each voxel with coordinates (x±1, y, z), (x, y±1, z) and (x, y, z±1) is connected to v at (x, y, z).
+
+PROCEDURE measureSurfaceArea:
+    Set S to 0.
+
+    For each v in I:
+        For each neighbor, n:
+            If n is *not* in I:
+                Increment S by 1.
+   Return S.
+END
+```
 
 ### Volume
 
-Count of voxels that represent a root system. Implemented by [Gia3D].
+Count of voxels that represent a root model. Implemented by [Gia3D].
+
+```text
+Input: A set of voxels, I, containing each voxel's respective coordinates.
+Output: Count of voxels as total volume, V.
+
+PROCEDURE measureVolume:
+    Set V to size/cardinality of I.
+
+    Return V.
+END
+```
 
 ### ConvexVolume
 
-Total volume computed by qhull library (v2012.1). Implemented by [Gia3D].
+Total volume of a convex hull that contains the root model, computed by qhull library (v2012.1). Implemented by [Gia3D]. For details, see C. Bradford Barber, David P. Dobkin, & Hannu Huhdanpaa (1996). The Quickhull algorithm for convex hulls. _ACM TRANSACTIONS ON MATHEMATICAL SOFTWARE, 22(4), 469–483._ [doi:10.1.1.117.405](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.117.405).
 
 ### Solidity
 
 The ratio of the volume to the convex hull volume. Implemented by [Gia3D].
 
-VolumeConvexVolume
+<img src="https://latex.codecogs.com/svg.image?\text{Solidity}=\frac{\text{Volume}}{\text{ConvexVolume}}" title="\text{Solidity}=\frac{\text{Volume}}{\text{ConvexVolume}}" />
 
 ### MedR
 
-The 50th percentile of the number of connected components for all slices. The number of connected components represent the number of roots that intersect a given slice.
+The 50th percentile of the number of connected components for all slices. The number of connected components represents the number of roots that intersect a given slice. Implemented by [Gia3D].
 
-The slices are ordered in ascending order from least number of roots to greatest, and the slice that falls on the 50th percentile is reported as the MedR. If the depth is an even number, it reports the average of the 50th percentile and that of the next lower number of roots for a given slice.
+```text
+Input: A set of voxels, I, containing each voxel's respective coordinates.
+Output: The median count of roots that intersect the XZ plane, a horizontal slice along the y-axis.
+Let v denote the current voxel.
+Let n denote the number of connected components.
+Let S denote a horizontal slice along the y-axis.
+Let y0 denote the earliest y-coordinate with a non-empty voxel.
+Let yf denote the last y-coordinate with a non-empty voxel.
+Let D denote the depth, yf - y0 + 1. This is a count of the slices needed to enclosure all slices with non-empty voxels.
 
-For each slice in root system
-Gather the voxels for slice and convert them into a number of connected components (i.e., join neighboring voxels into a single unit, 26-neighbor method)
-Store number of components in an unordered list
-Once the number of connected components for each slice is calculated, sort in ascending order.
+PROCEDURE measureMedianRootCount:
+    Create an empty list, R.
 
+    For each slice along the y-axis, S:
+        Set n to 0.
+        For each voxel, v, with a y-coordinate equal to S:
+            Create a connected component, c, using a 26-neighbor search path.
+            Increment n by 1.
+        Set the Sth element of R equal to n.
 
-Depending on the depth (i.e., total number of slices), there are two cases.
-There are an odd number of slices (odd depth), return 50th percentile count of connected components for all slices.
-There are an even number of slices (even depth), return the 50th percentile count of connected components for all slices averaged with the next lower count of connected components for a slice. Implemented by [Gia3D].
+    Sort R, ascending order.
+    If D is odd:
+        Return the (D/2) element of R.
+    Else:
+        Return the average of the elements, (D/2) and (D/2)-1, of R.
+END
+```
 
 ### MaxR
 
-The 84th percentile of the number of connected components for all slices. The number of connected components represent the number of roots that intersect a given slice.
+The 84th percentile of the number of connected components for all slices. The number of connected components represents the number of roots that intersect a given slice. Implemented by [Gia3D].
 
-The slices are ordered in ascending order from least number of roots to greatest, and the slice that falls on the 84th percentile is reported as the MaxR.
+```text
+Input: A set of voxels, I, containing each voxel's respective coordinates.
+Output: The 84th percentile count of roots that intersect the XZ plane, a horizontal slice along the y-axis.
+Let v denote the current voxel.
+Let n denote the number of connected components.
+Let S denote a horizontal slice along the y-axis.
+Let y0 denote the earliest y-coordinate with a non-empty voxel.
+Let yf denote the last y-coordinate with a non-empty voxel.
+Let D denote the depth, yf - y0 + 1. This is a count of the slices needed to enclosure all slices with non-empty voxels.
 
-For each slice in root system
-Gather the voxels for slice and convert them into a number of connected components (i.e., join neighboring voxels into a single unit, 26-neighbor method)
-Store number of components in an unordered list
-Once the number of connected components for each slice is calculated, sort in ascending order.
+PROCEDURE measureMaximumRootCount:
+    Create an empty list, R.
 
-Return roughly the 84th percentile of the number of connected components for all slices by on depth. Implemented by [Gia3D].
+    For each slice along the y-axis, S:
+        Set n to 0.
+        For each voxel, v, with a y-coordinate equal to S:
+            Create a connected component, c, using a 26-neighbor search path.
+            Increment n by 1.
+        Set the Sth element of R equal to n.
+
+    Sort R, ascending order.
+    Set i to ⌊D*0.85⌋.
+
+    Return the ith element of R.
+END
+```
 
 ### Bushiness
 
 The ratio of MaxR to MedR. Implemented by [Gia3D].
 
+<img src="https://latex.codecogs.com/svg.image?\text{Bushiness}=\frac{\text{MaxR}}{\text{MedR}}" title="\text{Bushiness}=\frac{\text{MaxR}}{\text{MedR}}" />
+
 ### Depth
 
 The difference in the number of voxels between the first slice and the deepest slice.
 The slices are 0-indexed, so 1 is added. Implemented by [Gia3D].
-slicen-slice0+1 
+
+```text
+Input: A set of voxels, I, containing each voxel's respective coordinates.
+Output: The count of the slices needed to enclosure all slices with non-empty voxels.
+Let y0 denote the earliest y-coordinate with a non-empty voxel.
+Let yf denote the last y-coordinate with a non-empty voxel.
+
+PROCEDURE measureDepth:
+    Set y0 to the number of voxels + 1.
+    Set yf to 0.
+
+    For each v in I:
+        If y0 is larger than the y-coordinate of v:
+            Set y0 to the y-coordinate of v.
+        If yf is smaller than the y-coordinate of v:
+            Set yf to the y-coordinate of v.
+
+    Return yf - y0 + 1
+END
+```
 
 ### HorEqDiameter
 
-Largest value for widthS=2volumeCH,S, given the volume of the convex hull for any slice along the vertical axis, ignoring edge cases where volume cannot be defined. Convex hull is calculated by qhull library (v2012.1).
+Maximum root model width among all horizontal slices. Implemented by [Gia3D].
 
-This is either referred to as the maximum horizontal distance for all slices or the equivalent diameter of the convex hull.
+```text
+Input: A set of voxels, I, containing each voxel's respective coordinates.
+Output: The maximum width between all extreme points of all horizontal slices along the y-axis.
 
-For each slice in root system
-Gather voxels for slice and calculate width
-Case A: 0 voxels -> skip to next slice
-Case B: 1 voxel
-Set widthS = 0 and continue to step 2
-Case C: 2 voxels
-Set widthS = euclidean distance between two voxels and continue to step 2
-Case D: 3 or more voxels
-Measure volume of convex hull of the slice (volumeCH,S) (qhull v2012.1) and continue to step 2
-widthS=2volumeCH,S
-If widthS is larger than the current known maximum width, set it to the widthS.
-Once each slice has been checked for a greater width, return the largest as HorEqDiameter.
+PROCEDURE measureMaximumWidth:
+    Set maxWidth to 0.
 
-Implemented by [Gia3D].
+    For each slice along the y-axis, S:
+        Create an empty list, P.
+        For each v in S:
+            Add v to P.
+
+        Set width, w, to 0.
+
+        If the length of P is less than 2:
+            Set w to 0
+        If the length of P is 2:
+            Set w to the Euclidean distance between the two elements of P.
+        If the length of P is greater than 2:
+            Set A to the area of the convex hull of all elements of P.
+            Set w to 2√(A/π);
+
+        If w is greater than maxWidth:
+            Set maxWidth to w.
+
+    Return w
+END
+```
 
 ### TotalLength
 
 Count of voxels that represent a skeleton of the root system. Implemented by [Gia3D].
 
+```text
+Input: A set of voxels, I, containing each voxel's respective coordinates in the skeleton.
+Output: Count of voxels as length, L.
+
+PROCEDURE measureTotalLength:
+    Set L to size/cardinality of I.
+
+    Return L.
+END
+```
+
 ### SRL
 
 Ratio of total root length to volume. Implemented by [Gia3D].
 
+<img src="https://latex.codecogs.com/svg.image?\text{SRL}=\frac{\text{TotalLength}}{\text{Volume}}" title="\text{SRL}=\frac{\text{TotalLength}}{\text{Volume}}" />
+
 ### Length_Distr
 
-The ratio of root length in the upper 1⁄3 of the volume to the root length in the lower 2⁄3 of the volume.
+The ratio of root length in the upper 1⁄3 of the volume to the root length in the lower 2⁄3 of the volume. Implemented by [Gia3D].
 
-Note, the root length for each is the number of voxels present in the skeleton for their respective portion relative to the depth. I labeled this feature as calculated using both the skeleton and PCD because the depth is calculated using the PCD, and the length is calculated using the voxels that make up the skeleton. Implemented by [Gia3D].
+```text
+Input: A set of voxels, I, containing each voxel's respective coordinates for the skeleton.
+Output: The ratio between the top ⅓ and bottom ⅔ of the depth.
+Let y0 denote the lowest value for any y-coordinate for all voxels.
+Let D denote the depth, as defined above.
+
+PROCEDURE measureLengthDistribution:
+    Set the cutoff threshold, c, to y0 + ⌊D/3⌋.
+    Set upper length, U, to 0.
+    Set lower length, L, to 0.
+
+    For each v in I:
+        If the y-coordinate of v is less than c:
+            Increment U by 1.
+        Else:
+            Increment L by 1.
+
+    If L is 0:
+        Return L
+    Else:
+        Return U/L
+END
+```
 
 ### W_D_ratio
 
 The ratio of the HorEqDiameter to the depth. Implemented by [Gia3D].
 
+<img src="https://latex.codecogs.com/svg.image?\text{W\_D\_ratio}=\frac{\text{HorEqDiameter}}{\text{Depth}}" title="\text{W\_D\_ratio}=\frac{\text{HorEqDiameter}}{\text{Depth}}" />
+
 ### NumberBifCl
 
-The number of connected components made up of neighboring branches in the skeleton.
+The number of connected components made up of neighboring branches in the skeleton. Implemented by [Gia3D].
 
-For each voxel in the skeleton
-If the voxel has more than two neighboring voxels, create a branch and add it to a list of known branches.
+This trait effectively counts the number of branching points in the root model. It uses the skeleton as the basis for this. To visualize what this means, see the figures below. Full disclosure, these models were *downsampled* point cloud representations, as the full resolution too difficult to understand with the naked eye.
 
-Note, this is stored in a hash_set/unordered_set using the linear index of the voxel “borrowed” from the skeleton’s voxset representation
+<div align="center">
+    <a href="docs/img/skeleton.png"><img src="docs/img/skeleton.png" width="300px"></a>
+    <a href="docs/img/bifurcation-clusters.png"><img src="docs/img/bifurcation-clusters.png" width="300px"></a>
+    <a href="docs/img/bifurcation-clusters_overlay_skeleton.png"><img src="docs/img/bifurcation-clusters_overlay_skeleton.png" width="300px"></a>
+</div>
+
+- The left figure shows the skeleton.
+- The center figure shows a large, transparent bubble in the area of a bifurcation cluster.
+- The right figure shows the bifurcation clusters overlaid onto the skeleton.
+
+Notice that the density of white bubbles is relatively lower the closer to the root tips. This indicates that there is less frequent branching relative to the regions closer to the stalk.
+
+For details on how bifurcation clusters are identified and counted, see pseudocode below.
+
+```text
+Input: A set of voxels, I, containing each voxel's respective coordinates for the skeleton.
+Output: Count of bifurcation clusters
+
+PROCEDURE countBifurcationClusters:
+    Create an empty list of clusters, C.
+
+    Identify instances of branching
+        Create an empty list of branching points, B.
+
+        For each voxel, v in I:
+            If more than 2 voxels neighbor v:
+                Add v to B.
 
 
-Once every branch has been created, initialize a queue with the first branch found. We want to collect the branching nodes into connected components.
+    Merge neighboring branches into a single cluster (i.e., connected component):
+        Initialize a queue, Q.
+        While B is not empty:
+            Add first element of B to Q.
+            Create empty list of branch voxels, Bv.
+            
+            While Q is not empty:
+                Dequeue the next element, e, of Q.
+                Add e to Bv.
+                Remove e from B.
+                For each neighbor n, of e:
+                    If n is in B:
+                        Add n to Q.
+                        Remove n from B.
 
-
-For each known branch, create a connected component for neighboring branches.
-
-The number of connected components made up of neighboring branches is the number of bifurcation clusters.
-
-Implemented by [Gia3D].
+            Add Bv to C.
+    Return number of elements in C
+END
+```
 
 ### AvgSizeBifCl
 
 The total number of voxels for all connected components of neighboring branches divided by the number of bifurcation clusters. I.e., the average number of voxels for each bifurcation cluster (connected component with more than two neighboring voxels/branches). Implemented by [Gia3D].
 
+```text
+Input: A set of voxels, I, containing each voxel's respective coordinates for the skeleton.
+Output: Count of bifurcation clusters
+
+PROCEDURE measureAverageBifurcationClusterSize:
+    Create an empty list of clusters, C.
+
+    Identify instances of branching
+        Create an empty list of branching points, B.
+
+        For each voxel, v in I:
+            If more than 2 voxels neighbor v:
+                Add v to B.
+
+
+    Merge neighboring branches into a single cluster (i.e., connected component):
+        Create an empty queue, Q.
+        While B is not empty:
+            Add first element of B to Q.
+            Create empty list of branch voxels, Bv.
+            
+            While Q is not empty:
+                Dequeue the next element, e, of Q.
+                Add e to Bv.
+                Remove e from B.
+                For each neighbor n, of e:
+                    If n is in B:
+                        Add n to Q.
+                        Remove n from B.
+
+            Add Bv to C.
+    
+    Count the number of voxels that are members of a bifurcation cluster
+        Set cTotal to 0.
+        For each cluster, c, in C:
+            Add the size of c to cTotal.
+
+    Set cCount to the number of elements in C.
+
+    Return cTotal / cCount.
+END
+```
+
 ### EdgeNum
 
-Number of edges, “sequence of neighboring voxels”, excluding sequences that end with a tip. Each edge ends at its starting voxel or a bifurcation cluster. Sequences that end with a tip are excluded.
+Number of edges in the skeleton. An edge is a segment of voxels joining two or more bifurcation clusters. They are a sequences of neighboring voxel. Each edge ends at a bifurcation cluster; therefore, any voxel sequence that do not branch (i.e., fewer than 3 neighbors) is omitted. Implemented by [Gia3D].
 
-For each voxel in the skeleton
-Count the number of voxels that are members of bifurcation clusters and not, separated into two collections: cluster “branch” & non-cluster “non-branch” voxels.
-Branch = more than two neighboring voxels
-Non-branch = 2 or fewer neighboring voxels
-Collect all non-branching voxels belonging to the same branch
-For each non-branching voxel, find its neighbors (should be 2 or fewer total). This is effectively looking for a “straight shot” down the root.
-If no neighbors are found, expand search to branch voxels. When a voxel from a neighboring branch is found, add the neighboring voxel to the edge, end edge, and continue to step 1ai for the next non-branching voxel.
-If no neighbors were found and no neighboring branches were found, it’s a root tip and the edge is completed. This voxel is flagged as a root tip and the “start” of an edge. Continue to step 1ai for the next non-branching voxel.
-[NEED TO CONFIRM] Sort indices of edges by branching point (MedialCurve.cpp, Lineno. 591-625)
-Iterate over all voxels in the skeleton and count the number of voxels with exactly one neighbor; this is the number of root tips.
-For each edge that does not end with a root tip (i.e., only the length of root that connect by bifurcation clusters)
-Count the number of edges
-Sum the euclidean distance between each voxel that makes up each edge.
+```text
+Input: A set of voxels, I, containing each voxel's respective coordinates for the skeleton.
+Output: Count of edges.
 
-In other words, hop from voxel to voxel along an edge/root, adding up the distance of each, i=0v(xi+1-xi)2+(yi+1-yi)2+(zi+1-zi)2where v is the number of voxels that make up the edge, ordered.
+PROCEDURE countEdges:
+    Create an empty list EDGES.
 
-Return number of edges as Edge_num, and return average length of edges by dividing the sum of the length of all edges by the number of edges.
+    Identify edges
+        Create an empty list for non-branching voxels, NB.
+        Create an empty list of branching voxels, B.
 
-Implemented by [Gia3D].
+        Note, a branching voxel is a voxel with more than 2 neighbors.
+        
+        For each voxel, v, in I:
+            If v as more than two neighbors:
+                Add v to B.
+            Else:
+                Add v to NB.
+
+        Create empty list S, for starting voxel for each edge.
+
+        For each non-branching voxel, nbv in NB:
+            Create an empty list E.
+            Add nbv to E.
+            If a neighbor of nbv is in NB:
+                Add neighbor to E.
+            Else if a neighbor is in B:
+                Add neighbor to E.
+                Add neighbor to S.
+            Else:
+                Add nbv to S.
+
+            Add E to EDGES.
+
+    Return the number of elements in EDGES.
+```
 
 ### AvgEdgeLength
 
 Sum of the length of all edges calculated from the skeleton divided by the number of edges. The length of each edge is the euclidean distance traversed by walking along each edge, voxel by voxel. Implemented by [Gia3D].
 
+```text
+Input: A set of voxels, I, containing each voxel's respective coordinates for the skeleton.
+Output: Count of edges.
+
+PROCEDURE countEdges:
+    Create an empty list EDGES.
+
+    Identify edges
+        Create an empty list for non-branching voxels, NB.
+        Create an empty list of branching voxels, B.
+
+        Note, a branching voxel is a voxel with more than 2 neighbors.
+        
+        For each voxel, v, in I:
+            If v as more than two neighbors:
+                Add v to B.
+            Else:
+                Add v to NB.
+
+        Create empty list S, for starting voxel for each edge.
+
+        For each non-branching voxel, nbv in NB:
+            Create an empty list E.
+            Add nbv to E.
+            If a neighbor of nbv is in NB:
+                Add neighbor to E.
+            Else if a neighbor is in B:
+                Add neighbor to E.
+                Add neighbor to S.
+            Else:
+                Add nbv to S.
+
+            Add E to EDGES.
+
+    Set edgeCount to the number of element in EDGES.
+
+    Calculate the total distance between each element of each edge.
+        Set totalEdgeLength to 0.
+
+        For each edge, e in EDGES:
+            For each voxel, ve in e:
+                Starting with the starting voxel (first element of ve), calculate
+                the Euclidean distance, D, to the coordinates of the element of the edge.
+
+                Add D to totalEdgeLength.
+
+    Return totalEdgeLength / edgeCount.
+```
+
 ### Number_tips
 
 Number of root tips. Implemented by [Gia3D].
 
+```text
+Input: A set of voxels, I, containing each voxel's respective coordinates for the skeleton.
+Output: Count of root tips.
+
+PROCEDURE countRootTips:
+    Set tipCount to 0.
+
+    For each voxel, v in I:
+        If and only if v has one neighbor:
+            Increment tipCount by 1.
+
+    Return tipCount.
+```
+
 ### volume
 
-The sum of squares of estimated iterations needed to erode the shape of the PCD until it forms a one-voxel wide curve, multiplied by pi. I.e., r2for each voxel where the radius is the number of iterations to erode down to a skeleton. Implemented by [Gia3D].
+An estimated volume for the root model based on the volume of a right cylinder. Implemented by [Gia3D]. This uses the estimated number of iterations in a thinning algorithm as the radius of the cylinder. The height of each cylinder is assumed to be 1.
+
+The number of iterations is estimated by an algorithm developed by Patrick Min. Said algorithm simply erodes boundary voxels of the object without changing its topology. The method described by Kálmán Palágyi and Attila Kuba in _Directional 3D Thinning Using 8 Subiterations_, Springer-Verlag Lecture Notes in Computer Science volume 1568, pp. 325-336, 1999.
+
+```text
+Input:
+    A set of voxels, I, containing each voxel's respective coordinates for the skeleton.
+    An erosion distance, E, containing the estimated number of iterations to erode root model down to a width of one voxel.
+Output: Estimated volume of root model.
+
+PROCEDURE approximateVolume:
+    Set C to 0.
+        
+    For each voxel, v in I:
+        Set r to erosion distance found in E for v.
+        Add r² to C.
+
+    Return C * πr.
+```
 
 ### Surface_area
 
-The sum of estimated iterations needed to erode the shape of the PCD until it forms a one-voxel wide curve, multiplied by 2. Implemented by [Gia3D].
+An estimated surface area for the root model based on the surface area of the lateral surface of a right cylinder. Implemented by [Gia3D]. This uses the estimated number of iterations in a thinning algorithm as the radius of the cylinder. The height of each cylinder is assumed to be 1.
+
+The number of iterations is estimated by an algorithm developed by Patrick Min. Said algorithm simply erodes boundary voxels of the object without changing its topology. The method described by Kálmán Palágyi and Attila Kuba in _Directional 3D Thinning Using 8 Subiterations_, Springer-Verlag Lecture Notes in Computer Science volume 1568, pp. 325-336, 1999.
+
+```text
+Input:
+    A set of voxels, I, containing each voxel's respective coordinates for the skeleton.
+    An erosion distance, E, containing the estimated number of iterations to erode root model down to a width of one voxel.
+Output: Estimated surface area of root model.
+
+PROCEDURE approximateSurfaceArea:
+    Set C to 0.
+        
+    For each voxel, v in I:
+        Set r to erosion distance found in E for v.
+        Add r to C.
+
+    Return C * 2π.
+```
 
 ### av_radius
 
-Create voxset from PCD
-Copy PCD voxset to “skel” object and then “create skeleton” using 2.25 as scale. This scale is “complexity,” not the resolution/dimensions of the voxels.
-Create a hash_map to store erosion distances (distR)
-Apply thinning (palagyi filter) via the applyWdist function provided by Patrick Min’s binvox and thinvox libraries. 
 
-“Erosion distance is computed during the thinning algorithm, it is estimated by the number of the iterations which it takes to erode the shape til one-voxel wide curve.”
+An estimated surface area for the root model based on the surface area of the lateral surface of a right cylinder. Implemented by [Gia3D]. This uses the estimated number of iterations in a thinning algorithm as the radius of the cylinder. The height of each cylinder is assumed to be 1.
 
-The code boils down to surface_area divided by the number of voxels in the skeleton. However, the surface_area appears to be calculated from the distance transformation map that is calculated by external libraries thinvox and binvox (https://www.patrickmin.com/thinvox/). So I don’t know the exact details of how the values are calculated, but if the above quote taken from a comment in the source code is correct, it is the estimated number of iterations needed to create a one-voxel wide curve.
+The number of iterations is estimated by an algorithm developed by Patrick Min. Said algorithm simply erodes boundary voxels of the object without changing its topology. The method described by Kálmán Palágyi and Attila Kuba in _Directional 3D Thinning Using 8 Subiterations_, Springer-Verlag Lecture Notes in Computer Science volume 1568, pp. 325-336, 1999.
 
-Going off of this, the average radius may be the average number of iterations needed to create the skeleton from the PCD. Assuming that each iteration would remove 0 to 1 voxels were iteration, this would be a proxy for the radius of a curve/root in voxel units.
+```text
+Input:
+    A set of voxels, I, containing each voxel's respective coordinates for the skeleton.
+    An erosion distance, E, containing the estimated number of iterations to erode root model down to a width of one voxel.
+Output: Estimated average radius for all roots in root model.
+
+PROCEDURE approximateAverageRootRadius:
+    Set C to 0.
+    Set voxelCount to 0.
+        
+    For each voxel, v in I:
+        Set r to erosion distance found in E for v.
+        Add r to C.
+        Increment voxelCount by 1.
+
+    Set totalSurfaceArea to C * 2π.
+
+    Return totalSurfaceArea / voxelCount;
+```
 
 Implemented by [Gia3D].
 
