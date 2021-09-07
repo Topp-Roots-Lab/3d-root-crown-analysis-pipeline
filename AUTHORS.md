@@ -6,7 +6,7 @@
 
 ## Maintainer(s)
 
-- Tim Parker \<Tim.ParkerD@gmail.com\>
+- Tim Parker \<TParker@danforthcenter.org\>
 
 ## Contributors
 
