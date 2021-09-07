@@ -18,7 +18,7 @@ A pipeline to analyze 3D X-ray volumes of root crowns.
 
 This pipeline was assembled over the years, so many projects and code bases have contributed to make this pipeline what it is. As such, several dependencies are required to run this pipeline. When possible, dependencies are included for easier installation. You will need to install four core components to use this pipeline. Although details are included in our installation guide, if you encounter any issues, it's best to reference the module's own repository and documentation for assistance.
 
-1. 3d-root-crown-analysis-pipeline (this repo)
+1. [3d-root-crown-analysis-pipeline](https://github.com/Topp-Roots-Lab/3d-root-crown-analysis-pipeline/) (this repo)
 1. [python-rawtools](https://github.com/Topp-Roots-Lab/python-rawtools/)
 1. [Gia3D](https://github.com/Topp-Roots-Lab/Gia3D)
 1. [New3DTraitsForRPF](https://github.com/Topp-Roots-Lab/New3DTraitsForRPF)
@@ -106,6 +106,8 @@ If you encounter any error, problem, or would like to suggest a feature, please 
 - [xrt-dmt](https://github.com/Topp-Roots-Lab/xrt-dmt): A data management tool for tracking and archiving XRT (meta)data
 
 ## References
+
+C. Bradford Barber, David P. Dobkin, & Hannu Huhdanpaa (1996). The Quickhull algorithm for convex hulls. _ACM TRANSACTIONS ON MATHEMATICAL SOFTWARE, 22(4), 469–483._ [doi:10.1.1.117.405](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.117.405).
 
 Fakir S. Nooruddin & Greg Turk (2003). Simplification and Repair of Polygonal Models Using Volumetric Techniques. IEEE Trans. on Visualization and Computer Graphics, vol. 9, nr. 2, April 2003, pages 191-205.
 
