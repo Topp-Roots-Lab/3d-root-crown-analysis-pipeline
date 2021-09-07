@@ -92,12 +92,11 @@ install: clean ## install the package to the active Python's site-packages
 	$(CXX) $(CXXFLAGS) $(SOURCES) $(DEPS) $(LIBS) -o xrcap/lib/rootCrownSegmentation
 	sed -i "s/GIT_COMMIT = .*/GIT_COMMIT = '$(shell git rev-parse --short HEAD)'/g" xrcap/cli.py
 
-	# TODO(tparker): Set up logging during installation
-	# mkdir -pv xrcap/lib
-	# mkdir -pv /var/log/xrcap/batch_segmentation /var/log/xrcap/batch_skeleton /var/log/xrcap/qc_binary_images /var/log/xrcap/qc_point_clouds /var/log/xrcap/rootCrownImageAnalysis3D
-	# chmod -Rv 2777 /var/log/xrcap
+	mkdir -pv xrcap/lib
+	mkdir -pv /var/log/xrcap/batch_segmentation /var/log/xrcap/batch_skeleton /var/log/xrcap/qc_binary_images /var/log/xrcap/qc_point_clouds /var/log/xrcap/rootCrownImageAnalysis3D
+	chmod -Rv 2777 /var/log/xrcap
 
-	pip install .
+	/usr/bin/env python3 -m pip install .
 
 uninstall: clean ## remove package
-	pip uninstall -y xrcap
+	/usr/bin/env python3 -m pip uninstall -y xrcap
