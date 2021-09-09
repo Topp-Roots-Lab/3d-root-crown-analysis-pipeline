@@ -226,7 +226,7 @@ PROCEDURE measureMaximumWidth:
         If w is greater than maxWidth:
             Set maxWidth to w.
 
-    Return w
+    Return maxWidth
 END
 ```
 
