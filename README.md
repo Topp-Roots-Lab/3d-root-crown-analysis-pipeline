@@ -80,7 +80,7 @@ N/CH/S `Skewness`|Skewness, or inequality, estimated from the distribution of bi
 N/CH/S `Kurtosis`|Kurtosis, or peakiness, estimated from the distribution of biomass/volume (N), convex hull (CH), or solidity (S) along the z-axis. High value indicates that the peak of the distribution around the mean is sharp and long-tailed; low value indicates that the peak around the mean is round and short-tailed.
 N/CH/S `Energy`|Energy, or uniformity, estimated from the distribution of biomass/volume (N), convex hull (CH), or solidity (S) along the z-axis. A high value indicates that the distribution has a small number of different levels.
 N/CH/S `Entropy`|Entropy, the inverse of energy, estimated from the distribution of biomass/volume (N), convex hull (CH), or solidity (S) along the z-axis. A high value indicates that the distribution has a higher number of different levels.
-N/CH/S `Smoothness`|Smoothness estimated from the distribution of biomass/volume (N), convex hull (CH), or solidity (S) along the z-axis. Defined as 1-11+(stddev)2
+N/CH/S `Smoothness`|Smoothness estimated from the distribution of biomass/volume (N), convex hull (CH), or solidity (S) along the z-axis. Defined as <img src="https://render.githubusercontent.com/render/math?math=1-%5Cfrac%7B1%7D%7B1%2B(stddev)%5E2%7D">.
 
 ### Usage
 
