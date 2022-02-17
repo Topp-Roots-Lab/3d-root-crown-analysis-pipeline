@@ -502,7 +502,8 @@ PROCEDURE countRootTips:
 END
 ```
 
-### volume
+### cylindrical_volume
+_(previously named: `volume`)_
 
 An estimated volume for the root model based on the volume of a right cylinder. Implemented by [Gia3D]. This uses the estimated number of iterations in a thinning algorithm as the radius of the cylinder. The height of each cylinder is assumed to be 1 voxel.
 
@@ -525,7 +526,8 @@ PROCEDURE approximateVolume:
 END
 ```
 
-### Surface_area
+### cylindrical_surface_area
+_(previously named: `Surface_area`)_
 
 An estimated surface area for the root model based on the surface area of the lateral surface of a right cylinder. Implemented by [Gia3D]. This uses the estimated number of iterations in a thinning algorithm as the radius of the cylinder. The height of each cylinder is assumed to be 1 voxel.
 
