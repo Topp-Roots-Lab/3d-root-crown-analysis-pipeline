@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.7.0 - 2021-04-29
+
+### Added
+
+- Allow users to define maximum depth for kernel density estimates at runtime
+- Allow users to define a range, lower and upper bounds, to use during segmentation in the format of a CSV
+
+### Changed
+
+- Removed unused imports
+- Code clean up of C++ implementation of image segmentation (e.g., CLI argument parsing)
+
 ## v1.6.4 - 2021-04-06
 
 ### Fixed

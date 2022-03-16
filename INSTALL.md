@@ -1,8 +1,8 @@
-# Installation Guide for 3D-RCAP
+# Installation Guide
 
 ## CentOS 8 Guide
 
-Base on this CentOS 7 guide: <https://www.vultr.com/docs/how-to-install-opencv-on-centos-7>
+Based on this CentOS 7 guide: <https://www.vultr.com/docs/how-to-install-opencv-on-centos-7>
 
 ### Dependencies
 
@@ -64,11 +64,18 @@ ls
 ## Core files
 
 ```bash
+# Install rawtools
+sudo python3 -m pip install git+https://github.com/Topp-Roots-Lab/python-rawtools
 # Clone repo
-sudo git clone https://github.com/Topp-Roots-Lab/3d-root-crown-analysis-pipeline.git /opt/3drcap/
+sudo git clone https://github.com/Topp-Roots-Lab/3d-root-crown-analysis-pipeline.git /opt/3d-root-crown-analysis-pipeline/
 # Install with Makefile (requires pip)
 sudo make install
 ```
+
+To wrap up the installation, separately install the two other components to run the pipeline:
+
+1. [New3DTraitsForRPF](https://github.com/Topp-Roots-Lab/New3DTraitsForRPF/blob/standalone-kde-traits/INSTALL.md) (standalone edition)
+1. [Gia3D](https://github.com/Topp-Roots-Lab/Gia3D#build)
 
 # Ubuntu 18.04 Guide
 
@@ -83,17 +90,24 @@ apt install libopencv-core3.2 libopencv-imgcodecs3.2 python2.7 python2.7-dev pyt
 ## Core files
 
 ```bash
+# Install rawtools
+sudo python3 -m pip install git+https://github.com/Topp-Roots-Lab/python-rawtools
 # Clone repo
-sudo git clone https://github.com/Topp-Roots-Lab/3d-root-crown-analysis-pipeline.git /opt/3drcap/
+sudo git clone https://github.com/Topp-Roots-Lab/3d-root-crown-analysis-pipeline.git /opt/3d-root-crown-analysis-pipeline/
 # Install with Makefile (requires pip)
 sudo make install
 ```
 
 ## Compile C++ Binaries (Optional)
 
-```{.sourceCode .bash}
+```bash
 g++ -o xrcap/lib/rootCrownSegmentation xrcap/rootCrownSegmentation.cpp -lopencv_highgui -lopencv_imgcodecs -lopencv_imgproc -lopencv_core -lboost_system -lboost_filesystem -lboost_program_options -ltbb
 ```
+
+To wrap up the installation, separately install the two other components to run the pipeline:
+
+1. [New3DTraitsForRPF](https://github.com/Topp-Roots-Lab/New3DTraitsForRPF/blob/standalone-kde-traits/INSTALL.md) (standalone edition)
+1. [Gia3D](https://github.com/Topp-Roots-Lab/Gia3D#build)
 
 ## Optional dependencies
 
