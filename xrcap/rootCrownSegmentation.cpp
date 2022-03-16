@@ -303,7 +303,7 @@ int user_defined_segment(string grayscale_images_directory, int sampling, string
  * @param filepath_out Destination filepath to output OUT file
  * @param filepath_obj Destination filepath to output OBJ file
  */
-int segment(string grayscale_images_directory, int sampling, string binary_images_directory, string filepath_out, string filepath_obj)
+int segment(string grayscale_images_directory, int sampling, string binary_images_directory, string filepath_out, string filepath_obj, int user_threshold_value)
 {
 	// Initialize OUT file
 	FILE *Outfp = fopen(filepath_out.c_str(), "w");
@@ -347,7 +347,13 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 		resize(grayscale_image, grayscale_image, Size(), scale, scale, INTER_LINEAR);
 		Mat binary_image; // thresholded image data
 
-		threshold_value = threshold(grayscale_image, binary_image, 0, 255, CV_THRESH_TRIANGLE);
+		// If the user defines a threshold value, use it for segmentation
+		if (threshold_value > -1) {
+			threshold_value = cv::threshold(grayscale_image, binary_image, user_threshold_value, 255, CV_THRESH_BINARY);
+		// Otherwise, determine a threshold value for segmentation
+		} else {
+			threshold_value = threshold(grayscale_image, binary_image, 0, 255, CV_THRESH_TRIANGLE);
+		}
 		// printf("Threshold value: %f\n", threshold_value);
 
 		// NOTE(tparker): Check that the threshold value has not been picked from
@@ -684,6 +690,7 @@ int main(int argc, char **argv)
 		string filepath_obj;			   // OBJ output filepath (root system)
 		string filepath_out_soil;		   // OUT output filepath (soil)
 		string filepath_obj_soil;		   // OBJ output filepath (soil)
+		int threshold_value;		   // user-defined grayscale value to use as the threshold (inclusive)
 		bool manual_segmentation;		   // manual segmentation flag (use lower and upper bounds for segmentation)
 		int lower_bound;				   // Lower bound for user-defined threshold
 		int upper_bound;				   // Upper bound for user-defined threshold
@@ -692,8 +699,9 @@ int main(int argc, char **argv)
 		generic.add_options()
 			("help,h", "show this help message and exit")
 			("version,V", "show program's version number and exit")
-			("verbose,v", "increase output verbosity. (default: False)")
-			("sampling", po::value<int>(&sampling)->default_value(2), "downsampling factor")
+			("verbose,v", "Increase output verbosity. (default: False)")
+			("cutoff,c", po::value<int>(&threshold_value)->default_value(-1), "User defined integer threshold value (inclusive) (default: -1")
+      ("sampling", po::value<int>(&sampling)->default_value(2), "downsampling factor")
 			("remove-soil", po::bool_switch(&soil_removal_flag), "enable automatic soil removal")
 			("manual,m", po::bool_switch(&manual_segmentation), "enable manual segmentation (you should provide lower and upper bounds)")
 			("lower-bound,l", po::value<int>(&lower_bound)->default_value(0), "set lower bound value to use during segmentation (inclusive)")
@@ -775,6 +783,10 @@ int main(int argc, char **argv)
 		cout << "Lower bound:\t\t" << to_string(lower_bound) << endl;
 		cout << "Upper bound:\t\t" << to_string(upper_bound) << endl;
 
+		if (threshold_value > -1) {
+			std::cout << "User-defined threshold value:\t" << std::to_string(threshold_value) << std::endl;
+		}
+
 		// Perform segmentation
 		if (soil_removal_flag)
 		{
@@ -791,7 +803,7 @@ int main(int argc, char **argv)
 		}
 		else
 		{
-			segment(grayscale_images_directory, sampling, binary_images_directory, filepath_out, filepath_obj);
+			segment(grayscale_images_directory, sampling, binary_images_directory, filepath_out, filepath_obj, threshold_value);
 		}
 		cout << "Finished processing " << grayscale_images_directory << ". Exiting." << endl;
 	}

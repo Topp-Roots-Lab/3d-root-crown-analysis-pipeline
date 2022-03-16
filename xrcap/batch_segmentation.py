@@ -229,6 +229,8 @@ def main(args):
 		cmd = [binary_filepath, f'{fp}/', f'{ofp}/', f'{out_fp}', f'{obj_fp}']
 		if args.soil:
 			cmd += ['--remove-soil', soil_out_fp, soil_obj_fp]
+    if args.cutoff > -1:
+      cmd += [ "-c", str(args.cutoff) ]
 		cmd += ['--sampling', str(args.sampling),]
 		cmd_list.append(cmd)
 
