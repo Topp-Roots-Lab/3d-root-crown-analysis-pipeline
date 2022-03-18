@@ -10,6 +10,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/imgcodecs.hpp"
+#include "yen.cpp"
 #include <tbb/tbb.h>
 
 #include <boost/filesystem.hpp>
@@ -24,6 +25,7 @@ using namespace std;
 const string MODULE_NAME = "rootCrownSegmentation";
 const string VERSION_NO = "1.2.0";
 const string VERSION = MODULE_NAME + " " + VERSION_NO;
+
 
 /*
  * Calculate median value of matrix
@@ -44,17 +46,17 @@ int medianMat(cv::Mat image)
 
 /*
  * Scales a value from one range to another range, inclusive.
- * 
+ *
  * This functions uses globally assigned values, min and max, of N given .nsidat
  * files
- * 
+ *
  * @param x value to be transformed
  * @param a minimum of input range
  * @param b maximum of input range
  * @param c minimum of output range
- * @param d maximum of output range 
+ * @param d maximum of output range
  * @return equivalent value of the input value within a new target
- * range  
+ * range
  */
 uint8_t scale(uint8_t x, uint8_t a, uint8_t b, uint8_t c, uint8_t d)
 {
@@ -66,7 +68,7 @@ uint8_t scale(uint8_t x, uint8_t a, uint8_t b, uint8_t c, uint8_t d)
  * Calculate mode of a vector
  *
  * The vector is a 1-D list of numeric values
- * 
+ *
  * @param std::vector<uint8_t> list
  * @return uint8_t mode
  */
@@ -82,7 +84,7 @@ uint8_t mode(std::vector<uint8_t> &arr)
  * Calculate standard of deviation of a vector
  *
  * The vector is a 1-D list of numeric values
- * 
+ *
  * @param std::vector<uint8_t> list
  * @return float standard of deviation
  */
@@ -109,8 +111,8 @@ float stddev(std::vector<uint8_t> &arr)
 /*
  * Check for circular artifact in a slice
  *
- * The matrix is a 
- * 
+ * The matrix is a
+ *
  * @param cv::Mat* binary image
  * @return `true` or `false`, whether a circle artifact is detected
  */
@@ -212,7 +214,7 @@ bool hasCircularArtifact(int slice_index, cv::Mat &data)
  * @param lower_bound The lowest value to be *included* during segmentation
  * @param upper_bound The highest value to be *included* during segmentation
  */
-int user_defined_segment(string grayscale_images_directory, int sampling, string binary_images_directory, string filepath_out, string filepath_obj, int lowerb = 0, int upperb =  255)
+int user_defined_segment(string grayscale_images_directory, int sampling, string binary_images_directory, string filepath_out, string filepath_obj, int lowerb = 0, int upperb = 255)
 {
 	// Initialize OUT file
 	FILE *Outfp = fopen(filepath_out.c_str(), "w");
@@ -242,7 +244,7 @@ int user_defined_segment(string grayscale_images_directory, int sampling, string
 	temp.release(); // free temporary image from memory
 	size = rows * cols;
 
-	int id;					// inverted slice index because roots are usually scanned upside down
+	int id; // inverted slice index because roots are usually scanned upside down
 
 	int count_cur, count_prev = 0, count_prev2 = 0; // white pixel counter(s)
 
@@ -256,7 +258,6 @@ int user_defined_segment(string grayscale_images_directory, int sampling, string
 		Mat binary_image; // thresholded image data
 
 		cv::inRange(grayscale_image, lowerb, upperb, binary_image);
-		
 
 		// Write thresholded binary image to disk
 		string filename = fn[n].substr(fn[n].find_last_of("/") + 1);
@@ -291,7 +292,6 @@ int user_defined_segment(string grayscale_images_directory, int sampling, string
 	fclose(Outfp);
 	fclose(Objfp);
 	return 0;
-
 }
 
 /*
@@ -337,6 +337,8 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 
 	int count_cur, count_prev = 0, count_prev2 = 0; // white pixel counter(s)
 
+
+	int limit = 0;
 	// For each grayscale image...
 	int slice_count = fn.size();
 	for (int n = 0; n < slice_count; n += sampling)
@@ -349,6 +351,42 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 
 		threshold_value = threshold(grayscale_image, binary_image, 0, 255, CV_THRESH_TRIANGLE);
 		// printf("Threshold value: %f\n", threshold_value);
+
+		// TODO:remove!
+		string fname = fn[n].substr(fn[n].find_last_of("/") + 1);
+		string fpath = "";
+		fpath = binary_images_directory + "CV_THRESH_TRIANGLE_" + fname;
+		imwrite(fpath, binary_image);
+		std::cout << "write '" << fpath << "'" << std::endl;
+
+		// Try yen!
+		fpath = binary_images_directory + "YEN_" + fname;
+
+
+		int hbins = 255; //histogram x axis size, that is histSize, 
+						//ex) 2 -> 0~128, 129~256, ex)16 -> 0 ~ 15, 16 ~ 31..., 
+		int channels[] = { 0 }; //index of channel
+		int histSize[] = { hbins };
+		float hranges[] = { 0, 255 };
+		const float* ranges[] = { hranges };
+		bool uniform = true;
+		bool accumulate = false;
+		MatND hist;
+
+		cv::calcHist(&grayscale_image,
+					1,
+					channels,
+					Mat(),
+					hist,
+					1,
+					histSize,
+					ranges,
+					uniform,
+					accumulate);
+		threshold_value = Yen(hist);
+		std::cout << "Yen threshold: " << threshold_value << std::endl;
+		threshold_value = threshold(grayscale_image, binary_image, threshold_value, 255, CV_THRESH_BINARY);
+		imwrite(fpath, binary_image);
 
 		// NOTE(tparker): Check that the threshold value has not been picked from
 		// the darker side of the histogram, as it's very unlikely that a root
@@ -367,6 +405,7 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 		// then the histogram is likely narrow
 		// Also, if the distance between the maximum and minimum is less than some constant value, then it is likely
 		// a narrow histogram as well
+		std::cout << "median / max = " << median << " / " << max << " = " << (median / max) << std::endl;
 		if ((median / max) > 0.75)
 		{
 			count_cur = 0;
@@ -460,6 +499,12 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 			}
 		imwrite(binary_images_directory + filename, binary_image);
 		cout << "Write binary image '" << filename << "'" << endl;
+
+
+		// if (limit > 10){
+		// 	exit(0);
+		// }
+		// limit++;
 	}
 
 	// Update vertex count and version for OUT file
@@ -637,7 +682,6 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 					fprintf(Objfp_soil, "v %d %d %d\n", j, i, id / sampling);
 					fprintf(Outfp_soil, "%d %d %d\n", j, i, id / sampling);
 				}
-
 			}
 		}
 
@@ -689,24 +733,10 @@ int main(int argc, char **argv)
 		int upper_bound;				   // Upper bound for user-defined threshold
 
 		po::options_description generic("");
-		generic.add_options()
-			("help,h", "show this help message and exit")
-			("version,V", "show program's version number and exit")
-			("verbose,v", "increase output verbosity. (default: False)")
-			("sampling", po::value<int>(&sampling)->default_value(2), "downsampling factor")
-			("remove-soil", po::bool_switch(&soil_removal_flag), "enable automatic soil removal")
-			("manual,m", po::bool_switch(&manual_segmentation), "enable manual segmentation (you should provide lower and upper bounds)")
-			("lower-bound,l", po::value<int>(&lower_bound)->default_value(0), "set lower bound value to use during segmentation (inclusive)")
-			("upper-bound,u", po::value<int>(&upper_bound)->default_value(255), "set upper bound value to use during segmentation (inclusive)");
+		generic.add_options()("help,h", "show this help message and exit")("version,V", "show program's version number and exit")("verbose,v", "increase output verbosity. (default: False)")("sampling", po::value<int>(&sampling)->default_value(2), "downsampling factor")("remove-soil", po::bool_switch(&soil_removal_flag), "enable automatic soil removal")("manual,m", po::bool_switch(&manual_segmentation), "enable manual segmentation (you should provide lower and upper bounds)")("lower-bound,l", po::value<int>(&lower_bound)->default_value(0), "set lower bound value to use during segmentation (inclusive)")("upper-bound,u", po::value<int>(&upper_bound)->default_value(255), "set upper bound value to use during segmentation (inclusive)");
 
 		po::options_description hidden("Hidden options");
-		hidden.add_options()
-		("grayscale-images-directory", "filepath to directory containing grayscale images")
-		("binary-images-directory", "filepath to directory to store binary images")
-		("out-filepath", "filepath for produced .OUT file")
-		("obj-filepath", "filepath for produced .OBJ file")
-		("out-filepath-soil", "filepath for produced .OUT file (soil)")
-		("obj-filepath-soil", "filepath for produced .OBJ file (soil)");
+		hidden.add_options()("grayscale-images-directory", "filepath to directory containing grayscale images")("binary-images-directory", "filepath to directory to store binary images")("out-filepath", "filepath for produced .OUT file")("obj-filepath", "filepath for produced .OBJ file")("out-filepath-soil", "filepath for produced .OUT file (soil)")("obj-filepath-soil", "filepath for produced .OBJ file (soil)");
 
 		po::positional_options_description pos_opts_desc;
 		pos_opts_desc

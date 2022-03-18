@@ -12,7 +12,7 @@ from xrcap import (batch_segmentation, batch_skeleton, rootCrownImageAnalysis3D,
 
 __version__ = version('xrcap')
 
-GIT_COMMIT = ''
+GIT_COMMIT = 'd508b9e'
 
 
 def main():
