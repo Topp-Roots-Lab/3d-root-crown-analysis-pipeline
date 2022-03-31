@@ -199,13 +199,16 @@ def main(args):
 
 	# Create threshold and model folders
 	for fp in set([ os.path.dirname(path) for path in args.path ]):
+		logging.debug(f"Accessing data folder '{fp}'")
 		thresholded_folder = f"{fp}_thresholded_images"
 		model_folder = f"{fp}_3d_models"
 
 		if not os.path.exists(thresholded_folder):
 			os.makedirs(thresholded_folder)
+			logging.debug(f"Created thresholded images folder: '{thresholded_folder}'")
 		if not os.path.exists(model_folder):
 			os.makedirs(model_folder)
+			logging.debug(f"Created models folder: '{model_folder}'")
 
 	# For each provided input folder, build a command for each volume
 	cmd_list = []
@@ -229,10 +232,12 @@ def main(args):
 		cmd = [binary_filepath, f'{fp}/', f'{ofp}/', f'{out_fp}', f'{obj_fp}']
 		if args.soil:
 			cmd += ['--remove-soil', soil_out_fp, soil_obj_fp]
-	if args.cutoff > -1:
-		cmd += [ "-c", str(args.cutoff) ]
-		cmd += ['--sampling', str(args.sampling),]
+		if args.cutoff > -1:
+			cmd += [ "-c", str(args.cutoff) ]
+			cmd += ['--sampling', str(args.sampling),]
 		cmd_list.append(cmd)
+
+	logging.debug(f"Commands: {cmd_list}")
 
 	# Process data
 	# Dedicate N CPUs for processing
