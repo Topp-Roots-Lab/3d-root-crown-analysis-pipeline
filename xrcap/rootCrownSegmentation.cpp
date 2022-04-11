@@ -347,14 +347,18 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 		resize(grayscale_image, grayscale_image, Size(), scale, scale, INTER_LINEAR);
 		Mat binary_image; // thresholded image data
 
+		// Slice name for debug messages
+		string debug_fname = fn[n].substr(fn[n].find_last_of("/") + 1);
+
 		// If the user defines a threshold value, use it for segmentation
 		if (threshold_value > -1) {
+			std::cout << debug_fname << " - User selected threshold value of '" << threshold_value << "'. Any values greater than this value will be kept." << std::endl;
 			threshold_value = cv::threshold(grayscale_image, binary_image, user_threshold_value, 255, CV_THRESH_BINARY);
 		// Otherwise, determine a threshold value for segmentation
 		} else {
 			threshold_value = threshold(grayscale_image, binary_image, 0, 255, CV_THRESH_TRIANGLE);
+			std::cout << debug_fname << " - Triange method has selected '" << threshold_value << "'. Any values greater than this value will be kept." << std::endl;
 		}
-		// printf("Threshold value: %f\n", threshold_value);
 
 		// NOTE(tparker): Check that the threshold value has not been picked from
 		// the darker side of the histogram, as it's very unlikely that a root
@@ -363,6 +367,7 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 		// then replace any values in the image that are darker than the median
 		// value with the median
 		int median = medianMat(grayscale_image);
+		std::cout << debug_fname << " - Calculated median value is '" << median << "'." << std::endl;
 		double min, max;
 		cv::Point minLoc, maxLoc;
 		cv::minMaxLoc(grayscale_image, &min, &max, &minLoc, &maxLoc);
@@ -385,12 +390,12 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 		// or bottom of an object in a scan.
 		if (!blankSliceFlag && ((n < (slice_count * 0.05) || n > (slice_count * 0.70)) && hasCircularArtifact(n, binary_image)))
 		{
-			// std::cout << "Flagged for circular artifact!" << std::endl;
+			std::cout << debug_fname << " - Flagged for circular artifact!" << std::endl;
 			int triangle_threshold_value = threshold_value;
-			// std::cout << "Triangle Treshold: " << triangle_threshold_value << std::endl;
+			std::cout << debug_fname << " - Triangle Treshold: " << triangle_threshold_value << std::endl;
 
 			int otsu_threshold_value = threshold(grayscale_image, binary_image, 0, 255, THRESH_OTSU);
-			// std::cout << "Otsu Treshold: " << otsu_threshold_value << std::endl;
+			std::cout << debug_fname << " - Otsu Treshold: " << otsu_threshold_value << std::endl;
 
 			int adjusted_thresholed_value = floor((triangle_threshold_value + otsu_threshold_value) / 2.0);
 			adjusted_thresholed_value = floor((triangle_threshold_value + adjusted_thresholed_value) / 2.0);
@@ -404,7 +409,7 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 				adjusted_thresholed_value = triangle_threshold_value;
 			}
 			threshold_value = threshold(grayscale_image, binary_image, adjusted_thresholed_value, 255, THRESH_BINARY);
-			// std::cout << "Adjusted Threshold: " << threshold_value << std::endl;
+			std::cout << debug_fname << " - Adjusted Threshold: " << threshold_value << std::endl;
 
 			// TODO(tparker): When the circle is still there!
 			// If the circular artifact is still present after
@@ -445,7 +450,7 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 
 		// Write thresholded binary image to disk
 		string filename = fn[n].substr(fn[n].find_last_of("/") + 1);
-		std::cout << "Slice '" << n << "' segmented with " << thresholding_method << " (" << threshold_value << ") for " << filename << std::endl;
+		std::cout << debug_fname << " - Slice '" << n << "' segmented with " << thresholding_method << " (" << threshold_value << ") for " << filename << std::endl;
 		// Update "previous" state to processed "current" state values
 		count_prev = count_cur;
 
