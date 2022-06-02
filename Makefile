@@ -92,9 +92,12 @@ install: clean ## install the package to the active Python's site-packages
 	$(CXX) $(CXXFLAGS) $(SOURCES) $(DEPS) $(LIBS) -o xrcap/lib/rootCrownSegmentation
 	sed -i "s/GIT_COMMIT = .*/GIT_COMMIT = '$(shell git rev-parse --short HEAD)'/g" xrcap/cli.py
 
-	mkdir -pv xrcap/lib
-	mkdir -pv /var/log/xrcap/batch_segmentation /var/log/xrcap/batch_skeleton /var/log/xrcap/qc_binary_images /var/log/xrcap/qc_point_clouds /var/log/xrcap/rootCrownImageAnalysis3D
-	chmod -Rv 2777 /var/log/xrcap
+	if [ "${USER}" = "root" ]; then \
+		mkdir -pv /var/log/xrcap/batch_segmentation /var/log/xrcap/batch_skeleton /var/log/xrcap/qc_binary_images /var/log/xrcap/qc_point_clouds /var/log/xrcap/rootCrownImageAnalysis3D; \
+		chmod -Rv 2777 /var/log/xrcap; \
+	else \
+		mkdir -pv "${HOME}/.config/xrcap/batch_segmentation" "${HOME}/.config/xrcap/batch_skeleton" "${HOME}/.config/xrcap/qc_binary_images" "${HOME}/.config/xrcap/qc_point_clouds" "${HOME}/.config/xrcap/rootCrownImageAnalysis3D"; \
+	fi
 
 	/usr/bin/env python3 -m pip install .
 
