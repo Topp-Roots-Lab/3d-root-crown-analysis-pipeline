@@ -26,7 +26,7 @@ BROWSER := python -c "$$BROWSER_PYSCRIPT"
 CXX = g++
 CXXFLAGS = -Wno-deprecated -D LINUX
 SOURCES = xrcap/rootCrownSegmentation.cpp
-LIBS = -lopencv_highgui -lopencv_imgcodecs -lopencv_imgproc -lopencv_core -lboost_system -lboost_filesystem -lboost_program_options -ltbb
+LIBS = -lboost_system -lboost_filesystem -lboost_program_options -ltbb
 
 help:
 	@python -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
@@ -39,6 +39,7 @@ clean-build: ## remove build artifacts
 	rm -fr .eggs/
 	find . -name '*.egg-info' -exec rm -fr {} +
 	find . -name '*.egg' -exec rm -f {} +
+	sed -i "s/GIT_COMMIT = .*/GIT_COMMIT = ''/g" xrcap/cli.py
 
 clean-pyc: ## remove Python file artifacts
 	find . -name '*.pyc' -exec rm -f {} +
@@ -87,9 +88,12 @@ dist: clean ## builds source and wheel package
 	rm -rvf xrcap/lib
 	ls -l dist
 
-install: clean ## install the package to the active Python's site-packages
+build: clean
 	if [ ! -d "xrcap/lib" ]; then mkdir -pv xrcap/lib; fi
-	$(CXX) $(CXXFLAGS) $(SOURCES) $(DEPS) $(LIBS) -o xrcap/lib/rootCrownSegmentation
+	$(CXX) $(CXXFLAGS) $(SOURCES) $(DEPS) $(shell pkg-config --cflags  --libs opencv4) $(LIBS) -o xrcap/lib/rootCrownSegmentation
+
+
+install: build ## install the package to the active Python's site-packages
 	sed -i "s/GIT_COMMIT = .*/GIT_COMMIT = '$(shell git rev-parse --short HEAD)'/g" xrcap/cli.py
 
 	if [ "${USER}" = "root" ]; then \

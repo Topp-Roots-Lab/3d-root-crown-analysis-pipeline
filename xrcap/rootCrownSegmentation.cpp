@@ -8,8 +8,8 @@
 #include <fstream>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include "opencv2/imgproc/imgproc.hpp"
-#include "opencv2/imgcodecs.hpp"
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/imgcodecs/imgcodecs.hpp>
 #include <tbb/tbb.h>
 
 #include <boost/filesystem.hpp>
@@ -150,7 +150,7 @@ bool hasCircularArtifact(int slice_index, cv::Mat &data)
 	{
 		// Inner mask
 		cv::Mat mask = cv::Mat::zeros(img.size(), img.type());
-		cv::circle(mask, center, radius, cv::Scalar(255, 255, 255), CV_FILLED);
+		cv::circle(mask, center, radius, cv::Scalar(255, 255, 255), FILLED);
 		const int mask_white_pixel_count = cv::countNonZero(mask);
 
 		// Outer mask
@@ -234,7 +234,7 @@ int user_defined_segment(string grayscale_images_directory, int sampling, string
 	cout << "Scale set as '" << scale << "'" << endl;
 
 	// Use first image to initialize dimensions and memory requirements
-	Mat temp = imread(fn[0], CV_LOAD_IMAGE_GRAYSCALE);
+	Mat temp = imread(fn[0], IMREAD_GRAYSCALE);
 	resize(temp, temp, Size(), scale, scale, INTER_LINEAR);
 	int rows, cols, size;
 	rows = temp.rows;
@@ -251,7 +251,7 @@ int user_defined_segment(string grayscale_images_directory, int sampling, string
 	for (int n = 0; n < slice_count; n += sampling)
 	{
 		id = slice_count - n;
-		Mat grayscale_image = imread(fn[n], CV_LOAD_IMAGE_GRAYSCALE);
+		Mat grayscale_image = imread(fn[n], IMREAD_GRAYSCALE);
 		resize(grayscale_image, grayscale_image, Size(), scale, scale, INTER_LINEAR);
 		Mat binary_image; // thresholded image data
 
@@ -324,7 +324,7 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 	cout << "Scale set as '" << scale << "'" << endl;
 
 	// Use first image to initialize dimensions and memory requirements
-	Mat temp = imread(fn[0], CV_LOAD_IMAGE_GRAYSCALE);
+	Mat temp = imread(fn[0], IMREAD_GRAYSCALE);
 	resize(temp, temp, Size(), scale, scale, INTER_LINEAR);
 	int rows, cols, size;
 	rows = temp.rows;
@@ -343,16 +343,16 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 	{
 		std::string thresholding_method = "triangle";
 		id = slice_count - n;
-		Mat grayscale_image = imread(fn[n], CV_LOAD_IMAGE_GRAYSCALE);
+		Mat grayscale_image = imread(fn[n], IMREAD_GRAYSCALE);
 		resize(grayscale_image, grayscale_image, Size(), scale, scale, INTER_LINEAR);
 		Mat binary_image; // thresholded image data
 
 		// If the user defines a threshold value, use it for segmentation
 		if (threshold_value > -1) {
-			threshold_value = cv::threshold(grayscale_image, binary_image, user_threshold_value, 255, CV_THRESH_BINARY);
+			threshold_value = cv::threshold(grayscale_image, binary_image, user_threshold_value, 255, THRESH_BINARY);
 		// Otherwise, determine a threshold value for segmentation
 		} else {
-			threshold_value = threshold(grayscale_image, binary_image, 0, 255, CV_THRESH_TRIANGLE);
+			threshold_value = threshold(grayscale_image, binary_image, 0, 255, THRESH_TRIANGLE);
 		}
 		// printf("Threshold value: %f\n", threshold_value);
 
@@ -518,7 +518,7 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 	cout << "Scale set as '" << scale << "'" << endl;
 
 	// Use resized first image to initialize dimensions and memory requirements
-	Mat temp = imread(fn[0], CV_LOAD_IMAGE_GRAYSCALE); // working grayscale image
+	Mat temp = imread(fn[0], IMREAD_GRAYSCALE); // working grayscale image
 	resize(temp, temp, Size(), scale, scale, INTER_LINEAR);
 	int rows, cols, size;
 	rows = temp.rows;
@@ -543,7 +543,7 @@ int segment(string grayscale_images_directory, int sampling, string binary_image
 	for (int n = 0; n < fn.size(); n += sampling)
 	{
 		id = fn.size() - n;
-		Mat grayscale_image = imread(fn[n], CV_LOAD_IMAGE_GRAYSCALE);
+		Mat grayscale_image = imread(fn[n], IMREAD_GRAYSCALE);
 		resize(grayscale_image, grayscale_image, Size(), scale, scale, INTER_LINEAR);
 		medianBlur(grayscale_image, grayscale_image, 3);
 
