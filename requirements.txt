@@ -1,0 +1,12 @@
+rawtools
+tqdm
+pandas
+numpy
+opencv-python
+scikit-learn
+scikit-image
+scipy
+xvfbwrapper
+plotly
+matplotlib
+kaleido
