@@ -3,20 +3,24 @@ import logging
 import os
 import pandas as pd
 
-def process(args, type):
-    if type == 'traits':
-        extension = '.csv'
-        sep = ','
-        delimiter = ','
-        index = False
-    elif type == 'features':
-        extension = '.tsv'
-        sep = "\\t"
-        delimiter = '\t'
-        index = False
-    else:
-        return # not supported type
-    # Find all '{type}.csv'
+def process(path:list[str], *args, **kwargs):
+    """Main for collating all features & traits measured
+    """
+
+    verbose = 'verbose' in kwargs
+    # if type == 'traits':
+    #     extension = '.csv'
+    #     sep = ','
+    #     delimiter = ','
+    #     index = False
+    # elif type == 'features':
+    #     extension = '.tsv'
+    #     sep = "\\t"
+    #     delimiter = '\t'
+    #     index = False
+    # else:
+    #     return # not supported type
+    # # Find all '{type}.csv'
     data_files = []
     for fp in args.path:
         for root, dirs, files in os.walk(fp):

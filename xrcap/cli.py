@@ -17,9 +17,42 @@ GIT_COMMIT = ''
 
 def main():
     """Console script for xrcap."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument('_', nargs='*')
-    parser.parse_args()
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('_', nargs='*')
+    # parser.parse_args()
+    description='Console script for xrcap.'
+    parser = argparse.ArgumentParser(description=description,formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
+    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__} (commit {GIT_COMMIT})')
+    parser.add_argument("-f", "--force", action="store_true", help="Force file creation. Overwrite any existing files.")
+    # parser.add_argument("--traits", action="store_true", help="Combine any traits.csv into one file.")
+    # parser.add_argument("--features", action="store_true", help="Combine any features.tsv into one file.")
+    # Assume that they want all features & traits
+    parser.add_argument("-o", dest="ofp", help="Specify output filepath.")
+    parser.add_argument("path", metavar='PATH', type=str, nargs='+', help='Input directory to process. Must contain folder with thresholded images.')
+    args = parser.parse_args()
+
+    args.module_name = 'collate'
+    log.configure(args)
+
+    # If not action is specified, nothing can be done
+    if not args.traits and not args.features:
+        logging.error("No action was specified. Please enable either '--traits' or '--features'.")
+        return 1
+
+    # Get the extensionless filepath for output file
+    if args.ofp is not None:
+        args.ofp = os.path.splitext(args.ofp)[0]
+
+    start_time = time.perf_counter()
+    # if args.traits:
+    #     collate.process(args, type='traits')
+    # if args.features:
+    #     collate.process(args, type='features')
+    collate.process(*args)
+    logging.info(f'Total execution time: {time.perf_counter() - start_time} seconds')
+
+
     return 0
 
 def segment():
@@ -171,8 +204,9 @@ def collate_output():
     parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
     parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__} (commit {GIT_COMMIT})')
     parser.add_argument("-f", "--force", action="store_true", help="Force file creation. Overwrite any existing files.")
-    parser.add_argument("--traits", action="store_true", help="Combine any traits.csv into one file.")
-    parser.add_argument("--features", action="store_true", help="Combine any features.tsv into one file.")
+    # parser.add_argument("--traits", action="store_true", help="Combine any traits.csv into one file.")
+    # parser.add_argument("--features", action="store_true", help="Combine any features.tsv into one file.")
+    # Assume that they want all features & traits
     parser.add_argument("-o", dest="ofp", help="Specify output filepath.")
     parser.add_argument("path", metavar='PATH', type=str, nargs='+', help='Input directory to process. Must contain folder with thresholded images.')
     args = parser.parse_args()
@@ -190,10 +224,11 @@ def collate_output():
         args.ofp = os.path.splitext(args.ofp)[0]
 
     start_time = time.perf_counter()
-    if args.traits:
-        collate.process(args, type='traits')
-    if args.features:
-        collate.process(args, type='features')
+    # if args.traits:
+    #     collate.process(args, type='traits')
+    # if args.features:
+    #     collate.process(args, type='features')
+    collate.process(*args)
     logging.info(f'Total execution time: {time.perf_counter() - start_time} seconds')
 
 if __name__ == "__main__":
