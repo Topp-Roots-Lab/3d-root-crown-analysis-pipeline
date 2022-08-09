@@ -10,7 +10,8 @@ with open('README.md') as readme_file:
 with open('CHANGELOG.md') as history_file:
     history = history_file.read()
 
-requirements = [ 'rawtools', 'tqdm', 'pandas', 'numpy', 'opencv-python', 'scikit-learn', 'scikit-image', 'scipy', 'xvfbwrapper' ]
+with open('requirements.txt') as requirements_file:
+    requirements = requirements_file.readlines()
 
 setup_requirements = [ ]
 

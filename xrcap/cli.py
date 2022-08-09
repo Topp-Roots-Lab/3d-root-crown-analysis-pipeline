@@ -7,30 +7,45 @@ import time
 from importlib.metadata import version
 from multiprocessing import cpu_count
 
-from xrcap import (batch_segmentation, batch_skeleton, rootCrownImageAnalysis3D, collate, log,
-                   qualitycontrol)
+from xrcap import (
+    batch_segmentation,
+    batch_skeleton,
+    rootCrownImageAnalysis3D,
+    collate,
+    log,
+    qualitycontrol,
+)
+from xrcap.utils import fetch_gia3d_version, fetch_segmentation_version
 
-__version__ = version('xrcap')
-
-GIT_COMMIT = ''
+__version__ = version("xrcap")
+GIT_COMMIT = "5e8b88c"
+__segmentation_version__ = fetch_segmentation_version()
+__gia3d_version__ = fetch_gia3d_version()
+__qualified_version__ = f"%(prog)s {__version__}: segment {__segmentation_version__}, Gia3D {__gia3d_version__}, commit {GIT_COMMIT}"
 
 
 def main():
     """Console script for xrcap."""
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('_', nargs='*')
-    # parser.parse_args()
-    description='Console script for xrcap.'
-    parser = argparse.ArgumentParser(description=description,formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-v", "--verbose", action="store_true", help="Increase output verbosity")
-    parser.add_argument("-V", "--version", action="version", version=f'%(prog)s {__version__} (commit {GIT_COMMIT})')
-    parser.add_argument("-f", "--force", action="store_true", help="Force file creation. Overwrite any existing files.")
-    # parser.add_argument("--traits", action="store_true", help="Combine any traits.csv into one file.")
-    # parser.add_argument("--features", action="store_true", help="Combine any features.tsv into one file.")
-    # Assume that they want all features & traits
-    parser.add_argument("-o", dest="ofp", help="Specify output filepath.")
-    parser.add_argument("path", metavar='PATH', type=str, nargs='+', help='Input directory to process. Must contain folder with thresholded images.')
-    args = parser.parse_args()
+    description = "Console script for xrcap"
+    parser = argparse.ArgumentParser(
+        description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument(
+        "-V",
+        "--version",
+        action="version",
+        version=__qualified_version__,
+    )
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Increase output verbosity"
+    )
+    parser.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        default=False,
+        help="Force file creation. Overwrite any existing files.",
+    )
 
     args.module_name = 'collate'
     log.configure(args)
