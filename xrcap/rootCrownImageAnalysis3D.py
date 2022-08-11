@@ -15,7 +15,7 @@ from multiprocessing.pool import ThreadPool
 from sys import float_info
 
 import cv2 as cv
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from PIL import Image
