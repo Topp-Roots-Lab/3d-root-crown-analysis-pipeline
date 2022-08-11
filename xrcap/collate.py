@@ -3,7 +3,7 @@ import logging
 import os
 import pandas as pd
 
-def process(path:list[str], *args, **kwargs):
+def main(path:list[str], *args, **kwargs):
     """Main for collating all features & traits measured
     """
 
