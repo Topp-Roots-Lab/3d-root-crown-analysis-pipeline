@@ -1,9 +1,9 @@
 ---
 name: Bug report
 about: Create a report to help us improve
-title: ''
+title: "[BUG]"
 labels: bug
-assignees: ''
+assignees: kenanoestreich
 
 ---
 
@@ -24,8 +24,13 @@ A clear and concise description of what you expected to happen.
 If applicable, add screenshots to help explain your problem.
 
 **Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Version [e.g. 22]
+ - OS [e.g. Linux, Windows 10]
+ - Python version [e.g. 3.7]
+ - Version [e.g. 0.1.1]
+ - Data [e.g., 2020 Planthaven IPSRI Unadjusted RAW] and location [e.g., storage device and path]
+
+**Log**
+Paste any error messages or logs associated with the bug here.
 
 **Additional context**
 Add any other context about the problem here.
