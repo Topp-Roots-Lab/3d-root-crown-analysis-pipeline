@@ -354,9 +354,10 @@ def process(args, fp, subfolder, thickness, scale, depth, pos, pbar_position):
 def main(args):
     """Perform image analysis on binary images"""
     # Disable debug statements from matplotlib.font_manager
+    # TO DO: Silence all submodules' logging statements by using a blacklist list and setting them all at the outset. 
     logging.getLogger('matplotlib.font_manager').setLevel(logging.WARNING)
 
-    # When not slice thickness is provided, try to extract it from .DAT
+    # When slice thickness is not provided, try to extract it from .DAT
     if not args.thickness:
         logging.debug(f"Slice thickness was not provided. Extracting information from .DAT files.")
         validate_dat_metadata(args)
@@ -446,5 +447,5 @@ def main(args):
                     logging.info(f"Results not saved to file. Unformatted results saved to log.")
 
     if slicethicknessCubicFlag:
-        logging.warning(f"The slicethickness value for at least one volume was found to be not exactly equal. Check the log for details. The following volumes were flagged: {flaggedVolumes}")
+        logging.warning(f"The slice thickness value for at least one volume was found to be not exactly equal. Check the log for details. The following volumes were flagged: {flaggedVolumes}")
     return 0

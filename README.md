@@ -48,25 +48,25 @@ Below are brief descriptions of the traits reported by this pipeline. For a more
 
 **Name**|**Description**
 -:|:-
-`SurfaceArea`|The sum of exposed voxel faces on surface of the root model.
-`Volume`|The sum of voxels in root model; a typical proxy for "biomass" in digital phenotyping.
-`ConvexVolume`|The volume of the convex hull that encompasses the root model.
-`Solidity`|The volume divided by the convex hull, a measure of the thoroughness of root exploration.
-`MedR`|The median number of roots among all horizontal slices.
+`SurfaceArea`|The sum of exposed voxel faces on surface of the root model. **TODO**
+`Volume`|The sum of voxels in root model; a typical proxy for "biomass" in digital phenotyping. **TODO**
+`ConvexVolume`|The volume of the convex hull that encompasses the root model. **TODO**
+`Solidity`|The volume divided by the convex hull, a measure of the thoroughness of root exploration. 
+`MedR`|The median number of roots among all horizontal slices. 
 `MaxR`|The 84<sup>th</sup> percentile value of the number of roots among all horizontal slices.
 `Bushiness`|The ratio of the maximum to the median number of roots among all horizontal slices.
-`Depth`|The number of voxels of the vertical axis of the root model, a measure of the depth of the deepest root
-`HorEqDiameter`|Maximum root model width among all horizontal slices.
-`TotalLength`|Root length as approximated by the number of voxels in the skeleton.
+`Depth`|The number of voxels of the vertical axis of the root model, a measure of the depth of the deepest root **TODO**
+`HorEqDiameter`|Maximum root model width among all horizontal slices. **TODO**
+`TotalLength`|Root length as approximated by the number of voxels in the skeleton. **TODO**
 `SRL`|Specific root length; the total length divided by the volume, similar to the traditional measure of total length divided by biomass.
 `LengthDistr`|The ratio of root length in the upper &frac13; of the root model to the root length in the lower &frac23; of the model.
 `WD_Ratio`|Width-to-depth ratio; the maximum root model width divided by the depth.
 `NumberBifCl`|Estimated number of branching point in the skeleton.
 `AvgSizeBifCl`|Estimated number of branches at each branching point in the skeleton.
 `EdgeNum`|Number of skeleton segments between estimated branching points.
-`AvgEdgeLength`|The average length of skeleton segments between estimated branching points, a measure of branching density of the root system.
+`AvgEdgeLength`|The average length of skeleton segments between estimated branching points, a measure of branching density of the root system. **TODO**
 `NumberTips`|Number of root tips in the root model.
-`AvgRadius`|The average radius of all roots in the model, as estimated by the distance of each voxel in the skeleton from the surface of the root model.
+`AvgRadius`|The average radius of all roots in the model, as estimated by the distance of each voxel in the skeleton from the surface of the root model. **TODO**
 `Elongation`|PCA on 3D point cloud, taking the ratio between PC2 variance and PC1 variance; measures how elongated the root is.
 `Flatness`|PCA on 3D point cloud, taking the ratio between PC3 variance and PC2 variance; measures how flat the root is.
 `Football`|PCA on (x, y) of 3D point cloud, taking the ratio between PC2 variance and PC1 variance.
@@ -74,8 +74,8 @@ Below are brief descriptions of the traits reported by this pipeline. For a more
 `DensityS` 1-6|The frequency of voxels with different 6 overlap ratios from side view. S6 represents the largest overlap ratio. Higher numbers in greater overlap ratio means a denser root.
 `FractalDimensionS`|Fractal dimension is estimated from the projected side-view image using the box-counting method. It is a measure of how complicated a root shape is using self-similarity.
 `FractalDimensionT`|Fractal dimension estimated from the projected top-view image using the box-counting method. It is a measure of how complicated a root shape is using self-similarity.
-N/CH/S `Mean`|Mean estimated from the distribution of biomass/volume (N), convex hull (CH), or solidity (S) along the z-axis.
-N/CH/S `Std`|Standard deviation estimated from the distribution of biomass/volume (N), convex hull (CH), or solidity (S) along the z-axis.
+N/CH/S `Mean`|Mean estimated from the distribution of biomass/volume (N), convex hull (CH), or solidity (S) along the z-axis. **TODO**
+N/CH/S `Std`|Standard deviation estimated from the distribution of biomass/volume (N), convex hull (CH), or solidity (S) along the z-axis. **TODO**
 N/CH/S `Skewness`|Skewness, or inequality, estimated from the distribution of biomass/volume (N), convex hull (CH), or solidity (S) along the z-axis. Negative value indicates that a large number of the values are lower than the mean (left-tailed); positive value indicates that a larger number of the values are higher than the mean (right-tailed).
 N/CH/S `Kurtosis`|Kurtosis, or peakiness, estimated from the distribution of biomass/volume (N), convex hull (CH), or solidity (S) along the z-axis. High value indicates that the peak of the distribution around the mean is sharp and long-tailed; low value indicates that the peak around the mean is round and short-tailed.
 N/CH/S `Energy`|Energy, or uniformity, estimated from the distribution of biomass/volume (N), convex hull (CH), or solidity (S) along the z-axis. A high value indicates that the distribution has a small number of different levels.
