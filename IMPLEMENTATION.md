@@ -599,7 +599,7 @@ Compute the convext hull for the root at each image slice first, then the trait 
 
 ### Solidty VHist
 
-The solidity at each slice is computed, then spline interpolated to the nt​h​ cm (1-20) below the top. Implemented by [New3DTraitsForRPF].
+The solidity at each slice is computed, then spline interpolated to the nt​h​ cm (1-20) below the top. Implemented by [rootCrownImageAnalysis3D].
 
 ### DensityS
 
